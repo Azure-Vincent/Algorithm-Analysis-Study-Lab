@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Challenge Generator{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Challenge generator</h1>
+  <p>Generates new loop-analysis problems from a structural spec. The answer is derived symbolically from that spec - never guessed - and every generator pattern is verified against exact operation counts by the test suite.</p></div>
+</div>
+<div class="card">
+  <div class="range-row">
+    <label class="field">Structure
+      <select id="family">{% for k, v in FAMILIES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'mixed' }}>{{ v }}</option>{% endfor %}</select>
+    </label>
+    <label class="field">Seed (optional) <input type="number" id="seed" placeholder="random" style="width:140px"></label>
+    <button class="btn primary" id="gen" style="align-self:flex-end">Generate</button>
+    <span class="muted" id="info" style="align-self:flex-end;font-size:.88rem"></span>
+  </div>
+  <p class="muted" style="font-size:.86rem;margin:10px 0 0">Varies loop bounds, nesting depth, step sizes, multiplicative and dividing updates, √n loops, dependent inner loops (triangular, geometric, harmonic, Σ log i), sequential sections, independent sizes n/m/k, and branches. The same seed always produces the same question.</p>
+</div>
+<div id="runner" style="margin-top:16px"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  async function gen() {
+    try {
+      const r = await BT.api("/api/generate", { family: $("family").value, seed: $("seed").value || null });
+      $("info").textContent = "seed " + r.seed + " · " + r.family;
+      $("seed").value = "";
+      new ExerciseRunner($("runner"), { context: "generated", onNext: gen, nextLabel: "New problem →", nextDoneLabel: "Generate another →" }).load(r.id);
+    } catch (e) { BT.toast(e.message); }
+  }
+  $("gen").addEventListener("click", gen);
+  gen();
+})();
+</script>
+{% endblock %}

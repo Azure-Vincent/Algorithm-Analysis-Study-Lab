@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Review Mistakes{% endblock %}
+{% block content %}
+<div id="main">
+<div class="page-head">
+  <div>
+    <h1>Review Mistakes</h1>
+    <p>Every missed or revealed problem is kept here with its full history. Answer one correctly (first try, no hints) {{ 3 }} times in a row to master it - its history stays.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn primary" id="retry-all">Retry all open & improving</button>
+  </div>
+</div>
+<div class="filters">
+  <label class="field">Status
+    <select id="f-status"><option value="all">All</option><option value="open" selected>Open</option><option value="improving">Improving</option><option value="mastered">Mastered</option></select>
+  </label>
+  <label class="field">Track
+    <select id="f-track"><option value="all">All tracks</option><option value="complexity">Complexity</option><option value="pseudocode">Pseudocode</option><option value="tn">T(n) Analysis</option></select>
+  </label>
+  <span class="spacer"></span><span class="muted" id="count"></span>
+</div>
+<div id="list"><p class="muted">Loading…</p></div>
+</div>
+<div id="session"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = BT.esc;
+  function fmtDate(s) { return s ? s.replace("T", " ").slice(0, 16) : "–"; }
+  async function load() {
+    const rows = await BT.api("/api/mistakes?status=" + $("f-status").value + "&track=" + $("f-track").value);
+    $("count").textContent = rows.length + " problem" + (rows.length === 1 ? "" : "s");
+    const list = $("list");
+    list.innerHTML = rows.length ? "" : '<div class="empty">Nothing here. Missed questions from any mode appear automatically.</div>';
+    rows.forEach((m) => {
+      const d = BT.el("details", { class: "mistake" });
+      const status = m.status === "open" ? "missed" : m.status;
+      d.innerHTML = "<summary><div><b>" + esc(m.question.split("\n")[0]) + '</b><br><span class="muted" style="font-size:.85rem">' +
+        esc(m.type_label) + " · " + esc(m.topic_label) + " · " + esc(m.difficulty) + " · missed " + m.times_missed + "× · last " + fmtDate(m.last_missed_at) + "</span></div>" +
+        '<div class="btn-row">' + BT.statusBadge(status) + (m.status !== "open" ? '<span class="badge">streak ' + m.correct_streak + "/3</span>" : "") + "</div></summary>";
+      const body = BT.el("div", { class: "body" });
+      body.innerHTML = '<div class="kv">' +
+        "<div>Question</div><div><pre class='plain'>" + esc(m.question) + "</pre></div>" +
+        "<div>Your answer</div><div><pre class='plain'>" + esc(m.my_answer || "–") + "</pre></div>" +
+        "<div>Correct answer</div><div><pre class='plain'>" + esc(m.correct_answer || "–") + "</pre></div>" +
+        "<div>Explanation</div><div><div class='steps'>" + esc(m.explanation || "–") + "</div></div>" +
+        (m.category_label ? "<div>Mistake category</div><div><span class='badge amber'>" + esc(m.category_label) + "</span></div>" : "") +
+        "<div>Topic / difficulty</div><div>" + esc(m.topic_label) + " · " + esc(m.difficulty) + "</div>" +
+        "<div>Attempts (last miss)</div><div>" + m.attempts + "</div>" +
+        "<div>Hints used</div><div>" + (m.hints_used ? "yes" : "no") + "</div>" +
+        "<div>First missed</div><div>" + fmtDate(m.first_missed_at) + "</div>" +
+        "<div>Last attempted</div><div>" + fmtDate(m.last_attempted_at) + "</div>" +
+        "<div>Retries</div><div>" + m.retry_count + " (" + m.retry_correct + " clean correct)</div></div>";
+      const row = BT.el("div", { class: "btn-row" });
+      row.appendChild(BT.el("button", { class: "btn primary small", text: "Retry now", onclick: () => retry(m.exercise_id) }));
+      const hist = BT.el("button", { class: "btn small ghost", text: "Show attempt history" });
+      const histBox = BT.el("div");
+      hist.onclick = async () => {
+        const det = await BT.api("/api/mistakes/" + encodeURIComponent(m.exercise_id));
+        let h = '<table class="data"><tr><th>When</th><th>Result</th><th>Hints</th><th>Where</th><th>Answer</th></tr>';
+        det.history.forEach((a) => {
+          h += "<tr><td>" + fmtDate(a.created_at) + "</td><td>" + (a.revealed ? '<span class="badge amber">revealed</span>' : (a.correct ? '<span class="badge green">correct</span>' : '<span class="badge red">wrong</span>')) +
+            "</td><td>" + a.hints_used + "</td><td>" + esc(a.context || "") + "</td><td class='mono' style='font-size:12px;white-space:pre-wrap'>" + esc((a.answer_text || "").slice(0, 200)) + "</td></tr>";
+        });
+        histBox.innerHTML = h + "</table>";
+      };
+      row.appendChild(hist);
+      body.appendChild(row);
+      body.appendChild(histBox);
+      d.appendChild(body);
+      list.appendChild(d);
+    });
+  }
+  function retry(id) {
+    const back = BT.el("div", { class: "modal-back" });
+    const modal = BT.el("div", { class: "modal" });
+    const close = BT.el("button", { class: "btn small close", text: "Close ✕", onclick: () => { back.remove(); load(); } });
+    modal.appendChild(close);
+    const holder = BT.el("div", { style: "clear:both;padding-top:8px" });
+    modal.appendChild(holder);
+    back.appendChild(modal);
+    document.body.appendChild(back);
+    new ExerciseRunner(holder, { context: "review", onNext: () => { back.remove(); load(); }, nextLabel: "Close", nextDoneLabel: "Done - back to the list" }).load(id);
+  }
+  $("f-status").addEventListener("change", load);
+  $("f-track").addEventListener("change", load);
+  const sess = new SessionRunner($("session"), { onRestart: () => { $("session").innerHTML = ""; $("main").classList.remove("hidden"); load(); } });
+  $("retry-all").addEventListener("click", () => {
+    $("main").classList.add("hidden");
+    sess.start({ mode: "review", count: 0 });
+  });
+  load();
+})();
+</script>
+{% endblock %}

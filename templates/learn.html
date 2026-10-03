@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Learn{% endblock %}
+{% block content %}
+<div class="learn-layout">
+  <nav class="toc">
+    <div class="section-title" style="margin-top:0">Reference</div>
+    <a href="#method">The analysis method</a>
+    <a href="#what">What asymptotic analysis is</a>
+    <a href="#constants">Why constants are ignored</a>
+    <a href="#lower">Why lower-order terms are ignored</a>
+    <a href="#bigo">Big O - upper bound</a>
+    <a href="#omega">Big Ω - lower bound</a>
+    <a href="#theta">Big Θ - tight bound</a>
+    <a href="#valid-vs-tight">Valid vs. tight bounds</a>
+    <a href="#growth">Growth rates</a>
+    <a href="#sequential">Sequential operations</a>
+    <a href="#nested">Nested loops</a>
+    <a href="#log">Logarithmic loops</a>
+    <a href="#recursion">Recursion basics</a>
+    <a href="#cases">Best / average / worst case</a>
+    <a href="#convention">Pseudocode convention</a>
+    <a href="#pseudo-method">Writing pseudocode</a>
+  </nav>
+
+  <div class="learn">
+    <section id="method">
+      <h2>The analysis method</h2>
+      <p>Every complexity exercise in this app is built around one repeatable procedure. Use it instead of pattern-matching on what the code "looks like".</p>
+      <ol>{% for m in ANALYSIS_METHOD %}<li>{{ m }}</li>{% endfor %}</ol>
+      <p>Worked example:</p>
+<pre class="plain">for i = 1 to n            ← runs n times
+    x = x + 1             ← 1 operation
+    for j = 1 to n        ← runs n times for EACH i
+        y = y + j         ← basic operation
+for k = 1 to n            ← runs n times, AFTER the nested block
+    z = z + k</pre>
+      <div class="steps">1. Basic operations: the additions.
+2. Inner j-loop: n per outer iteration. Outer i-loop: n. k-loop: n.
+3. The j-loop is nested inside the i-loop (multiply); the k-loop is sequential (add).
+4. T(n) ≈ n·(1 + n) + n = n² + 2n
+5. Drop the lower-order 2n term.
+6. T(n) ∈ Θ(n²), so the tightest upper bound is O(n²).</div>
+    </section>
+
+    <section id="what">
+      <h2>What asymptotic analysis is</h2>
+      <p>Asymptotic analysis describes how an algorithm's resource use (usually running time) <b>grows as the input size n grows</b>. Instead of measuring seconds - which depend on the machine, the language, and the compiler - we count basic operations as a function T(n), and then describe the <i>shape</i> of that function for large n.</p>
+      <p>It answers questions like "if I double the input, what happens to the running time?" A Θ(n) algorithm roughly doubles; a Θ(n²) algorithm roughly quadruples; a Θ(log n) algorithm barely changes; a Θ(2ⁿ) algorithm squares its running time.</p>
+    </section>
+
+    <section id="constants">
+      <h2>Why constants are ignored</h2>
+      <p>Two versions of the same loop might take 3n or 7n machine instructions depending on the compiler or CPU. That factor is real, but it's a property of the <i>implementation</i>, not the <i>algorithm</i>. Asymptotic notation deliberately ignores it so that comparisons stay meaningful across machines.</p>
+      <p>More importantly, constant factors can't change which algorithm wins for large inputs. Compare 100n with n²:</p>
+      <table class="data" style="max-width:520px">
+        <tr><th class="num">n</th><th class="num">100n</th><th class="num">n²</th><th>Faster</th></tr>
+        <tr><td class="num">10</td><td class="num">1,000</td><td class="num">100</td><td>n²</td></tr>
+        <tr><td class="num">100</td><td class="num">10,000</td><td class="num">10,000</td><td>tie</td></tr>
+        <tr><td class="num">1,000</td><td class="num">100,000</td><td class="num">1,000,000</td><td>100n</td></tr>
+        <tr><td class="num">1,000,000</td><td class="num">10⁸</td><td class="num">10¹²</td><td>100n (10,000× faster)</td></tr>
+      </table>
+      <p>However large the constant, the linear algorithm eventually wins - and the gap keeps widening. (Constants still matter in practice when comparing algorithms of the same class; see the "Same class, different constants" exercise.)</p>
+    </section>
+
+    <section id="lower">
+      <h2>Why lower-order terms are ignored</h2>
+      <p>Take <code>T(n) = 4n² + 3n + 20</code>. Watch what fraction of the total each term contributes:</p>
+      <table class="data" style="max-width:620px">
+        <tr><th class="num">n</th><th class="num">4n²</th><th class="num">3n</th><th class="num">20</th><th class="num">share of 4n²</th></tr>
+        <tr><td class="num">1</td><td class="num">4</td><td class="num">3</td><td class="num">20</td><td class="num">15%</td></tr>
+        <tr><td class="num">10</td><td class="num">400</td><td class="num">30</td><td class="num">20</td><td class="num">89%</td></tr>
+        <tr><td class="num">100</td><td class="num">40,000</td><td class="num">300</td><td class="num">20</td><td class="num">99.2%</td></tr>
+        <tr><td class="num">10,000</td><td class="num">400,000,000</td><td class="num">30,000</td><td class="num">20</td><td class="num">99.99%</td></tr>
+      </table>
+      <p>The <b>dominant term</b> is the one that grows fastest - here n². Because 3n/n² → 0 and 20/n² → 0, the lower-order terms become irrelevant for large n. Dropping them and the constant 4 leaves the growth rate: T(n) ∈ Θ(n²).</p>
+    </section>
+
+    <section id="bigo">
+      <h2>Big O - an upper bound</h2>
+      <div class="defn"><b>f(n) ∈ O(g(n))</b> if there are constants c &gt; 0 and n₀ such that <code>f(n) ≤ c · g(n)</code> for every n ≥ n₀.</div>
+      <p>In words: eventually, f grows <i>no faster</i> than g (up to a constant factor). Big O is a <b>claim about an upper bound</b>. It is not "the running time", and it is not automatically "the worst case".</p>
+      <p>Proof for T(n) = 4n² + 3n + 20 ∈ O(n²): for n ≥ 1, 3n ≤ 3n² and 20 ≤ 20n², so T(n) ≤ 4n² + 3n² + 20n² = 27n². Choose c = 27, n₀ = 1. ✓</p>
+      <p>Since n² ≤ n³ for n ≥ 1, the same argument shows T(n) ∈ O(n³) - a true but looser statement.</p>
+    </section>
+
+    <section id="omega">
+      <h2>Big Ω - a lower bound</h2>
+      <div class="defn"><b>f(n) ∈ Ω(g(n))</b> if there are constants c &gt; 0 and n₀ such that <code>f(n) ≥ c · g(n)</code> for every n ≥ n₀.</div>
+      <p>Eventually, f grows <i>at least as fast</i> as g. For T(n) = 4n² + 3n + 20: T(n) ≥ 4n² for all n ≥ 1, so T(n) ∈ Ω(n²) with c = 4. Since n² ≥ n, it is also Ω(n) and Ω(1) - true, but loose.</p>
+      <p>Ω does not mean "best case". You can state a lower bound on the worst case (e.g. "the worst case of any comparison sort is Ω(n log n)").</p>
+    </section>
+
+    <section id="theta">
+      <h2>Big Θ - a tight bound</h2>
+      <div class="defn"><b>f(n) ∈ Θ(g(n))</b> if f(n) ∈ O(g(n)) <b>and</b> f(n) ∈ Ω(g(n)): there are constants c₁, c₂ &gt; 0 and n₀ with <code>c₁·g(n) ≤ f(n) ≤ c₂·g(n)</code> for all n ≥ n₀.</div>
+      <p>Θ pins down the growth rate exactly (up to constants). For T(n) = 4n² + 3n + 20: 4n² ≤ T(n) ≤ 27n² for n ≥ 1, so T(n) ∈ Θ(n²). There is exactly one growth class that works - Θ(n³) fails the lower half and Θ(n) fails the upper half.</p>
+      <p>A function describing the <i>whole</i> running time of an algorithm across all inputs may have no single Θ (insertion sort ranges from linear to quadratic). Each specific case - best, worst, average - is a single function and does have one.</p>
+    </section>
+
+    <section id="valid-vs-tight">
+      <h2>Valid bounds vs. the tight bound</h2>
+      <p>For <code>T(n) = 4n² + 3n + 20</code>:</p>
+      <table class="data">
+        <tr><th>Statement</th><th>True?</th><th>What it tells you</th></tr>
+        <tr><td class="mono">T(n) ∈ O(n³)</td><td><span class="badge green">true</span></td><td>Valid upper bound, but loose - it allows cubic growth that never happens.</td></tr>
+        <tr><td class="mono">T(n) ∈ O(n²)</td><td><span class="badge green">true</span></td><td>The tightest upper bound.</td></tr>
+        <tr><td class="mono">T(n) ∈ Θ(n²)</td><td><span class="badge green">true</span></td><td>The most informative statement: grows exactly quadratically.</td></tr>
+        <tr><td class="mono">T(n) ∈ Ω(n²)</td><td><span class="badge green">true</span></td><td>The tightest lower bound.</td></tr>
+        <tr><td class="mono">T(n) ∈ Ω(n)</td><td><span class="badge green">true</span></td><td>Valid lower bound, but loose.</td></tr>
+        <tr><td class="mono">T(n) ∈ O(n)</td><td><span class="badge red">false</span></td><td>4n² eventually exceeds any c·n.</td></tr>
+        <tr><td class="mono">T(n) ∈ Θ(n³)</td><td><span class="badge red">false</span></td><td>Not Ω(n³).</td></tr>
+      </table>
+      <div class="callout">A mathematically valid bound is not the same as the most informative bound. Saying "binary search is O(n²)" is true - and nearly useless. When this app asks for the complexity, it asks for the <b>tightest</b> bound.</div>
+    </section>
+
+    <section id="growth">
+      <h2>Growth rates</h2>
+      <p>From slowest to fastest:</p>
+      <div class="formula">1 &lt; log n &lt; √n &lt; n &lt; n log n &lt; n² &lt; n³ &lt; 2ⁿ &lt; n!</div>
+      <table class="data">
+        <tr><th>Class</th><th>Name</th><th>Typical source</th></tr>
+        <tr><td class="mono">1</td><td>constant</td><td>array access, arithmetic, a fixed number of steps</td></tr>
+        <tr><td class="mono">log n</td><td>logarithmic</td><td>halving the problem each step (binary search)</td></tr>
+        <tr><td class="mono">√n</td><td>square root</td><td>trial division up to √n</td></tr>
+        <tr><td class="mono">n</td><td>linear</td><td>one pass over the input</td></tr>
+        <tr><td class="mono">n log n</td><td>linearithmic</td><td>merge sort, heap sort, efficient sorting</td></tr>
+        <tr><td class="mono">n²</td><td>quadratic</td><td>all pairs; simple sorts</td></tr>
+        <tr><td class="mono">n³</td><td>cubic</td><td>all triples; naive matrix multiplication</td></tr>
+        <tr><td class="mono">2ⁿ</td><td>exponential</td><td>all subsets; two recursive calls on n - 1</td></tr>
+        <tr><td class="mono">n!</td><td>factorial</td><td>all orderings (permutations)</td></tr>
+      </table>
+      <p>The base of a logarithm doesn't matter: log₃ n = log₂ n / log₂ 3, a constant factor. See the <a href="/visualizer">visualizer</a>.</p>
+    </section>
+
+    <section id="sequential">
+      <h2>Sequential operations: add</h2>
+<pre class="plain">for i = 1 to n        // n
+    print(i)
+for j = 1 to n        // + n
+    print(j)</pre>
+      <p>One section finishes before the next begins, so their costs add: n + n = 2n ∈ Θ(n). In general <b>O(f) + O(g) = O(max(f, g))</b>: after adding, keep the dominant term. With different variables, keep both: a loop over n followed by a loop over m is Θ(n + m).</p>
+      <p><b>Branches</b>: only one branch of an if/else runs, so for the worst case take the <i>max</i> of the branches, not the sum.</p>
+    </section>
+
+    <section id="nested">
+      <h2>Nested loops: multiply (or sum)</h2>
+<pre class="plain">for i = 1 to n        // n
+    for j = 1 to n    // × n
+        print(i, j)</pre>
+      <p>The inner loop runs completely for <i>each</i> outer iteration: n × n = n². Three nested loops over n give n³; loops over different sizes give nm, nk, nmk.</p>
+      <p>When the inner bound depends on the outer variable, <b>sum</b> the inner counts instead of multiplying:</p>
+<pre class="plain">for i = 1 to n
+    for j = 1 to i    // i iterations</pre>
+      <div class="steps">Total = 1 + 2 + ... + n = n(n + 1)/2 = ½n² + ½n ∈ Θ(n²)</div>
+      <p>Summing is what reveals the surprises: a doubling outer loop with an inner loop of i iterations gives 1 + 2 + 4 + ... &lt; 2n = Θ(n), not n log n; an inner loop stepping by i gives n/1 + n/2 + ... + n/n = Θ(n log n). A nested loop is also not always n²: if the inner loop's total work across the whole run is bounded (each item pushed and popped once), the total can be linear - that's amortized analysis.</p>
+    </section>
+
+    <section id="log">
+      <h2>Logarithmic loops</h2>
+<pre class="plain">i = 1
+while i &lt; n
+    i = i * 2</pre>
+      <p>After k iterations i = 2ᵏ. The loop stops when 2ᵏ ≥ n, i.e. k = log₂ n. The same happens when the problem is divided each step (<code>i = i / 2</code>, binary search, removing a digit with <code>div 10</code>).</p>
+      <div class="callout">Additive updates (i + 1, i + 2, i + 100) → linear. Multiplicative updates (i × 2, i ÷ 3) → logarithmic. Squaring (i × i) → log log n.</div>
+      <p>A log loop inside an n loop is n log n; two nested log loops are log² n. A loop that runs while i·i ≤ n is √n.</p>
+    </section>
+
+    <section id="recursion">
+      <h2>Recursion basics</h2>
+      <p>Write a <b>recurrence</b>: T(n) = (number of calls) × T(subproblem size) + (work done outside the calls). Then unroll it or draw the recursion tree.</p>
+<pre class="plain">function mystery(n)
+    if n &lt;= 1
+        return
+    mystery(n - 1)</pre>
+      <div class="steps">T(n) = T(n - 1) + c
+     = T(n - 2) + 2c = ... = T(1) + (n - 1)c   ∈ Θ(n)</div>
+      <table class="data">
+        <tr><th>Recurrence</th><th>Solution</th><th>Example</th></tr>
+        <tr><td class="mono">T(n) = T(n - 1) + c</td><td class="mono">Θ(n)</td><td>recursive sum, factorial</td></tr>
+        <tr><td class="mono">T(n) = T(n / 2) + c</td><td class="mono">Θ(log n)</td><td>binary search, fast power</td></tr>
+        <tr><td class="mono">T(n) = T(n - 1) + cn</td><td class="mono">Θ(n²)</td><td>quicksort worst case</td></tr>
+        <tr><td class="mono">T(n) = T(n / 2) + cn</td><td class="mono">Θ(n)</td><td>geometric series: n + n/2 + ...</td></tr>
+        <tr><td class="mono">T(n) = 2T(n / 2) + c</td><td class="mono">Θ(n)</td><td>visiting every node of a balanced tree</td></tr>
+        <tr><td class="mono">T(n) = 2T(n / 2) + cn</td><td class="mono">Θ(n log n)</td><td>merge sort: cn work on each of log n levels</td></tr>
+        <tr><td class="mono">T(n) = 2T(n - 1) + c</td><td class="mono">Θ(2ⁿ)</td><td>two calls on n - 1: the tree doubles each level</td></tr>
+      </table>
+      <p>Count the calls that actually <i>execute</i>: binary search has two recursive calls in its code but only one runs per invocation.</p>
+    </section>
+
+    <section id="cases">
+      <h2>Best, average, and worst case</h2>
+      <p>For many algorithms the running time depends on <i>which</i> input of size n you get. Each case is its own function of n:</p>
+      <ul>
+        <li><b>Worst case W(n)</b> - the maximum time over all inputs of size n.</li>
+        <li><b>Best case B(n)</b> - the minimum.</li>
+        <li><b>Average case A(n)</b> - the expected time under a stated input distribution.</li>
+      </ul>
+      <table class="data">
+        <tr><th>Algorithm</th><th>Best</th><th>Average</th><th>Worst</th></tr>
+        <tr><td>Linear search</td><td class="mono">Θ(1)</td><td class="mono">Θ(n)</td><td class="mono">Θ(n)</td></tr>
+        <tr><td>Binary search</td><td class="mono">Θ(1)</td><td class="mono">Θ(log n)</td><td class="mono">Θ(log n)</td></tr>
+        <tr><td>Selection sort</td><td class="mono">Θ(n²)</td><td class="mono">Θ(n²)</td><td class="mono">Θ(n²)</td></tr>
+        <tr><td>Insertion sort</td><td class="mono">Θ(n)</td><td class="mono">Θ(n²)</td><td class="mono">Θ(n²)</td></tr>
+        <tr><td>Quicksort</td><td class="mono">Θ(n log n)</td><td class="mono">Θ(n log n)</td><td class="mono">Θ(n²)</td></tr>
+      </table>
+      <div class="callout amber"><b>Cases and bounds are independent ideas.</b> O, Ω and Θ describe functions; the case tells you <i>which</i> function. "The worst case of linear search is Θ(n)" is precise. "Ω means best case" and "O means worst case" are misconceptions - you can put an O, Ω or Θ bound on any case.</div>
+      <p>What is true: an upper bound that holds for <i>every</i> input must cover the worst case, and a lower bound that holds for every input can be no larger than the best case. That's why insertion sort's running time over all inputs is O(n²) and Ω(n) - with no single Θ.</p>
+    </section>
+
+    <section id="convention">
+      <h2>Pseudocode convention</h2>
+      <p>The Pseudocode Lab runs your code against test cases, so it uses one consistent convention - but it is forgiving about common variations.</p>
+<pre class="plain">procedure Name(A, target)          // also: function, algorithm
+    count = 0                      // also: count ← 0, count := 0, set count to 0
+    for i = 0 to length(A) - 1     // inclusive bounds; also "downto" and "step 2"
+        if A[i] == target          // = also works in conditions; then/do optional
+            count = count + 1      // also: count++, count += 1, increment count
+        else if A[i] &lt; 0
+            ...
+        else
+            ...
+    while low &lt;= high
+        mid = floor((low + high) / 2)
+    for each x in A
+        ...
+    swap(A[i], A[j])               // also: swap A[i] and A[j]
+    B = new array[n]               // n zeros
+    return count</pre>
+      <ul>
+        <li>Blocks are defined by <b>indentation</b> (end-markers like <code>end if</code> are allowed and ignored).</li>
+        <li>Arrays are <b>0-indexed</b> and bounds-checked: reading <code>A[n]</code> is an error, just like in a real program.</li>
+        <li>Operators: <code>and or not mod div</code>, <code>== != &lt; &lt;= &gt; &gt;=</code> (≤ ≥ ≠ also work), <code>^</code> for powers, <code>/</code> for real division.</li>
+        <li>Functions: <code>length(A)</code> (or <code>A.length</code>), <code>floor ceil sqrt abs min max</code>, <code>append(L, x)</code>, <code>print</code>.</li>
+        <li>Constants: <code>true false infinity null</code>.</li>
+      </ul>
+    </section>
+
+    <section id="pseudo-method">
+      <h2>Writing pseudocode, step by step</h2>
+      <ol>{% for m in PSEUDO_METHOD %}<li>{{ m }}</li>{% endfor %}</ol>
+      <p>Example - "return the number of even values in an array":</p>
+      <div class="steps">1. Input: an array of integers.        2. Output: a count (integer).
+3. Track: a counter.                    4. Iteration over every element + selection (is it even?).
+5. Steps:</div>
+<pre class="plain">procedure CountEven(numbers)
+    count = 0
+    for i = 0 to length(numbers) - 1
+        if numbers[i] mod 2 == 0
+            count = count + 1
+    return count</pre>
+      <div class="steps">6. Trace [4, 7, 10]: count 1 → 1 → 2. Returns 2 ✓
+7. One pass, O(1) per element → Θ(n).</div>
+      <p>Most beginner algorithms follow the same skeleton: <b>initialize → iterate → test → update → return</b>.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

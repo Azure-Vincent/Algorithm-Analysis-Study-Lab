@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}T(n) Reference{% endblock %}
+{% block content %}
+<div class="learn-layout">
+  <nav class="toc">
+    <div class="section-title" style="margin-top:0">T(n) reference</div>
+    <a href="#what">What T(n) represents</a>
+    <a href="#ops">Primitive operations</a>
+    <a href="#counts">Statement execution counts</a>
+    <a href="#loops">Loop init, checks, updates</a>
+    <a href="#sequential">Sequential statements</a>
+    <a href="#nested">Nested loops</a>
+    <a href="#sums">Summations</a>
+    <a href="#log">Logarithmic loops</a>
+    <a href="#multi">Several input sizes</a>
+    <a href="#cases">Input-dependent counts</a>
+    <a href="#simplify">Simplifying T(n)</a>
+    <a href="#theta">From T(n) to Θ</a>
+    <p style="margin-top:14px"><a class="btn small" href="/tn">← T(n) Analysis</a></p>
+  </nav>
+
+  <div class="learn">
+    <section id="what">
+      <h2>What T(n) represents</h2>
+      <p><b>T(n)</b> is the number of primitive operations an algorithm performs on an input of size n, counted with one fixed set of rules (the <i>counting model</i> below). It turns the structure of the code into a function you can reason about.</p>
+      <div class="callout amber"><b>A model, not a stopwatch.</b> "T(n) = 4n + 7" doesn't mean the CPU executes exactly 4n + 7 instructions - a compiler might emit 3 or 30 instructions for one assignment. It means "4n + 7 operations under this app's counting rules". Different textbooks use slightly different rules and get different constants; the growth (Θ) comes out the same.</div>
+    </section>
+
+    <section id="ops">
+      <h2>Primitive operations</h2>
+      <p>Every T(n) exercise, hint and grade in this section uses these rules:</p>
+      <table class="data tn-model">{% for sym, desc, cost in TN_MODEL %}<tr><td class="mono">{{ sym }}</td><td>{{ desc }}</td><td class="num"><b>{{ cost }}</b></td></tr>{% endfor %}</table>
+      <p>So you count the operator symbols on a line:</p>
+<pre class="plain">x = 5                      =                → 1
+x = x + 1                  + =              → 2
+sum = sum + A[i]           + =   (A[i] free) → 2
+d = dx * dx + dy * dy      * * + =          → 4
+B[i] = A[n - 1 - i]        - - =            → 3
+return a + b               return +         → 2
+print(A[i])                call             → 1
+if (A[i] > 0 and x != 3)   > != and         → 3</pre>
+    </section>
+
+    <section id="counts">
+      <h2>Statement execution counts</h2>
+      <p>Each row contributes <b>cost × executions</b>. A statement outside every loop runs once. A statement inside a loop runs once per iteration. T(n) is the sum over all rows:</p>
+      <div class="formula">T(n) = Σ (cost of row) × (times the row executes)</div>
+    </section>
+
+    <section id="loops">
+      <h2>Loop initialization, comparisons and increments</h2>
+      <p>Loops are written with all three parts visible: <code>for (init; condition; update)</code>. If the body runs <b>I</b> times each time the loop is reached:</p>
+      <table class="data" style="max-width:560px">
+        <tr><th>Part</th><th>Runs</th><th>Why</th></tr>
+        <tr><td><code>i = 0</code></td><td class="mono">1</td><td>once, before the first check</td></tr>
+        <tr><td><code>i &lt; n</code></td><td class="mono">I + 1</td><td>once per iteration, plus the final check that fails and ends the loop</td></tr>
+        <tr><td><code>i++</code></td><td class="mono">I</td><td>after every iteration</td></tr>
+        <tr><td>body</td><td class="mono">I</td><td>once per iteration</td></tr>
+      </table>
+      <p><b>Worked example - sum an array:</b></p>
+<pre class="plain">procedure SumArray(A, n)
+    sum = 0                      cost 1 × 1        = 1
+    for (i = 0; i &lt; n; i++)      i = 0:  1 × 1     = 1
+                                 i &lt; n:  1 × (n+1) = n + 1
+                                 i++:    1 × n     = n
+        sum = sum + A[i]         cost 2 × n        = 2n
+    return sum                   cost 1 × 1        = 1</pre>
+      <div class="steps">T(n) = 1 + 1 + (n + 1) + n + 2n + 1 = 4n + 4      →  Θ(n)</div>
+      <p>Watch the bound: <code>i &lt;= n</code> starting at 1 is also n iterations; <code>i &lt; n - 1</code> is n - 1 iterations and its check costs 2 (the subtraction); <code>i &lt; 2 * n</code> is 2n iterations with a check of cost 2.</p>
+    </section>
+
+    <section id="sequential">
+      <h2>Sequential statements: add</h2>
+      <p>Code that runs one block after another adds: derive each part, then <b>T(n) = T₁(n) + T₂(n)</b>.</p>
+<pre class="plain">for (i = 0; i &lt; n; i++)          T₁(n) = 1 + (n + 1) + n + n = 3n + 2
+    print(A[i])
+for (j = 0; j &lt; n; j++)          T₂(n) = 3n + 2
+    print(A[j])</pre>
+      <div class="steps">T(n) = (3n + 2) + (3n + 2) = 6n + 4   - added, not multiplied: Θ(n)</div>
+    </section>
+
+    <section id="nested">
+      <h2>Nested loops: the inner loop runs for every outer iteration</h2>
+<pre class="plain">count = 0                                    1
+for (i = 0; i &lt; n; i++)                      i = 0: 1 · i &lt; n: n + 1 · i++: n
+    for (j = 0; j &lt; n; j++)                  j = 0: n · j &lt; n: n(n + 1) · j++: n²
+        count = count + 1                    2 × n²
+return count                                 1</pre>
+      <p>The inner loop is <i>reached</i> n times, so its init runs n times, its condition (n + 1) times per visit = n(n + 1) in total, and its update and body n · n = n² times.</p>
+      <div class="steps">T(n) = 1 + 1 + (n + 1) + n + n + (n² + n) + n² + 2n² + 1 = 4n² + 4n + 4   →  Θ(n²)</div>
+      <p>The classic slip is counting the inner loop n times in total instead of n times <i>per outer iteration</i>.</p>
+    </section>
+
+    <section id="sums">
+      <h2>Summations</h2>
+      <p>When the inner bound depends on the outer variable, the inner loop runs a different number of times on each outer iteration - <b>add</b> those counts instead of multiplying:</p>
+<pre class="plain">for (i = 0; i &lt; n; i++)
+    for (j = 0; j &lt;= i; j++)      runs i + 1 times on outer iteration i
+        count = count + 1</pre>
+      <div class="steps">body executions = 1 + 2 + 3 + … + n = n(n + 1)/2 = n²/2 + n/2
+inner checks    = Σ (i + 2) = n²/2 + 3n/2
+T(n) (with count = 0 and return count) = 2n² + 6n + 4   →  Θ(n²)</div>
+      <table class="data" style="max-width:520px">
+        <tr><th>Sum</th><th>Closed form</th></tr>
+        <tr><td class="mono">1 + 2 + … + n</td><td class="mono">n(n + 1)/2</td></tr>
+        <tr><td class="mono">0 + 1 + … + (n − 1)</td><td class="mono">n(n − 1)/2</td></tr>
+        <tr><td class="mono">1 + 1 + … + 1 (n times)</td><td class="mono">n</td></tr>
+        <tr><td class="mono">1² + 2² + … + n²</td><td class="mono">n(n + 1)(2n + 1)/6</td></tr>
+      </table>
+    </section>
+
+    <section id="log">
+      <h2>Logarithmic loops</h2>
+<pre class="plain">i = 1                       1
+while (i &lt; n)               log₂ n + 1
+    i = i * 2               2 × log₂ n</pre>
+      <p>i takes the values 1, 2, 4, …, 2ᵏ; the loop stops when 2ᵏ ≥ n, i.e. after <b>k = log₂ n</b> iterations (assuming n is a power of 2 so the count is a whole number). Halving (<code>i = i / 2</code> down to 1) is the same count.</p>
+      <div class="steps">T(n) = 1 + (log₂ n + 1) + 2 log₂ n = 3 log₂ n + 2   →  Θ(log n)</div>
+      <p>In this section <code>log(n)</code> means log₂ n. A linear loop around a doubling loop gives terms in <i>n log₂ n</i>.</p>
+    </section>
+
+    <section id="multi">
+      <h2>Several input sizes</h2>
+      <p>Keep independent sizes separate. An n-loop around an m-loop:</p>
+      <div class="steps">T(n, m) = 1 + 1 + (n + 1) + n + n + n(m + 1) + nm + 2nm + 1 = 4nm + 4n + 4   →  Θ(nm)</div>
+      <p>Writing n² here would be wrong unless m = n. Sequential loops over n and m give Θ(n + m) - neither term can be dropped.</p>
+    </section>
+
+    <section id="cases">
+      <h2>Input-dependent execution: best and worst case</h2>
+      <p>With an <code>if</code> or an early <code>return</code>, the number of operations depends on the data, not only on n. There is then no single T(n) - each <i>case</i> has its own function:</p>
+<pre class="plain">for (i = 0; i &lt; n; i++)
+    if (A[i] == target)
+        return i
+return -1</pre>
+      <div class="steps">best case  (target is A[0]):  1 + 1 + 1 + 1             = 4         →  Θ(1)
+worst case (target absent):   1 + (n + 1) + n + n + 1   = 3n + 3    →  Θ(n)</div>
+      <p>T<sub>best</sub>(n) is the minimum count over all inputs of size n; T<sub>worst</sub>(n) the maximum. Both are ordinary functions you can simplify and classify.</p>
+    </section>
+
+    <section id="simplify">
+      <h2>Simplifying T(n)</h2>
+      <p>Expand products and collect like terms into one term per power: <code>(n + 1) + n + 2n + 3</code> → <code>4n + 4</code>; <code>n(n + 1)/2</code> → <code>n²/2 + n/2</code>. Any equivalent form is accepted as an answer - <code>3n + 4</code>, <code>4 + 3n</code>, <code>n + n + n + 4</code> all match - but the guided mode asks for the simplified form explicitly.</p>
+    </section>
+
+    <section id="theta">
+      <h2>Converting T(n) into asymptotic notation</h2>
+      <div class="tn-panels">
+        <div class="tn-panel p1"><div class="k">Operation-count model</div><div class="v mono">T(n) = 4n² + 6n + 3</div><div class="d">exact under the counting model</div></div>
+        <div class="tn-arrow">→</div>
+        <div class="tn-panel p2"><div class="k">Dominant term</div><div class="v mono">4n²</div><div class="d">fastest-growing term</div></div>
+        <div class="tn-arrow">→</div>
+        <div class="tn-panel p3"><div class="k">Asymptotic result</div><div class="v mono">Θ(n²)</div><div class="d">drop the constant</div></div>
+      </div>
+      <p>Growth order: 1 &lt; log n &lt; n &lt; n log n &lt; n² &lt; n³. Keep the fastest-growing term (for several variables, every term not dominated by another, e.g. nm + k), then drop its constant factor. T(n) and Θ are related but different statements: T(n) is a specific function; Θ(n²) is the set of all functions that grow like n². See <a href="/learn#theta">Learn → Big Θ</a> for the formal definitions.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

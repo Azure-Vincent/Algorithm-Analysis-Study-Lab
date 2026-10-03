@@ -1,0 +1,19 @@
+# secrets and local data
+.env
+.env.*
+!.env.example
+instance/
+*.db
+*.db-shm
+*.db-wal
+secret_key
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# home-lab Docker data (homelab/compose.yaml)
+homelab/data/

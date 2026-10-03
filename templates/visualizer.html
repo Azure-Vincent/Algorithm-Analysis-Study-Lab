@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Growth-Rate Visualizer{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Growth-rate visualizer</h1>
+  <p>Constants stop mattering quickly; growth rate is what decides whether an algorithm is usable.</p></div>
+</div>
+<div class="card pad-lg">
+  <div class="fn-toggles" id="toggles"></div>
+  <div class="range-row">
+    <label class="field">n from 1 to <input type="range" id="xmax" min="4" max="100" value="20"></label>
+    <span class="mono" id="xmax-v">20</span>
+    <label class="field">Y-axis
+      <select id="ymode">
+        <option value="100">linear, up to 100</option>
+        <option value="1000" selected>linear, up to 1,000</option>
+        <option value="100000">linear, up to 100,000</option>
+        <option value="auto">linear, fit everything</option>
+        <option value="log">logarithmic</option>
+      </select>
+    </label>
+  </div>
+  <div class="chart-wrap" style="margin-top:12px"><canvas class="chart" id="chart"></canvas></div>
+  <p class="muted" style="font-size:.88rem;margin-top:8px">Curves that leave the top of the chart are labeled where they exit. Try the logarithmic axis to see all eight at once - on a log scale every polynomial becomes a straight-ish line, while 2ⁿ and n! keep curving upward.</p>
+</div>
+
+<div class="card pad-lg" style="margin-top:16px">
+  <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+    <label class="field">Input size n <input type="number" id="n" value="1000" min="1" max="1000000000" style="width:180px"></label>
+    <label class="field">Machine speed
+      <select id="speed"><option value="1e6">10⁶ ops/sec</option><option value="1e9" selected>10⁹ ops/sec</option><option value="1e12">10¹² ops/sec</option></select>
+    </label>
+  </div>
+  <table class="data" style="margin-top:12px" id="ops"></table>
+  <h3 style="margin-top:24px">Same functions at several sizes</h3>
+  <table class="data" id="grid"></table>
+  <p class="muted" style="font-size:.88rem">log means log₂. Counts are the functions themselves (constant factor 1), so treat them as estimated operation counts.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const on = {};
+  Growth.FUNCS.forEach((f) => {
+    on[f.key] = true;
+    const lab = BT.el("label", {}, []);
+    const cb = BT.el("input", { type: "checkbox", checked: "checked" });
+    cb.addEventListener("change", () => { on[f.key] = cb.checked; draw(); });
+    lab.appendChild(cb);
+    lab.appendChild(BT.el("span", { class: "sw", style: "background:" + f.color }));
+    lab.appendChild(document.createTextNode(f.label));
+    $("toggles").appendChild(lab);
+  });
+  function draw() {
+    const xmax = +$("xmax").value; $("xmax-v").textContent = xmax;
+    const ym = $("ymode").value;
+    const series = Growth.FUNCS.filter((f) => on[f.key]).map((f) => ({
+      label: f.label, color: f.color,
+      integer: f.key === "n!",
+      fn: (x) => { const l = f.log10(Math.max(1, x)); return l === -Infinity ? 0 : Math.pow(10, Math.min(l, 300)); },
+    }));
+    let ymax;
+    if (ym === "auto" || ym === "log") ymax = undefined; else ymax = +ym;
+    Growth.drawChart($("chart"), series, { xmin: 1, xmax: xmax, logY: ym === "log", ymax: ymax, xlabel: "n" });
+  }
+  function table() {
+    const n = Math.max(1, Math.floor(+$("n").value || 1));
+    const speed = +$("speed").value;
+    let h = "<tr><th>Growth rate</th><th class=num>Operations at n = " + n.toLocaleString() + "</th><th class=num>Time at " + $("speed").selectedOptions[0].text + "</th></tr>";
+    Growth.FUNCS.forEach((f) => {
+      const l = f.log10(n);
+      h += "<tr><td class=mono><span class='sw' style='display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:" + f.color + "'></span>" + f.label +
+        "</td><td class='num mono'>" + Growth.fmtBig(l) + "</td><td class='num'>" + Growth.fmtTime(l, speed) + "</td></tr>";
+    });
+    $("ops").innerHTML = h;
+    const sizes = [10, 20, 50, 100, 1000, 1e6];
+    let g = "<tr><th>f(n)</th>" + sizes.map((s) => "<th class=num>n = " + s.toLocaleString() + "</th>").join("") + "</tr>";
+    Growth.FUNCS.forEach((f) => {
+      g += "<tr><td class=mono>" + f.label + "</td>" + sizes.map((s) => "<td class='num mono' style='font-size:.85rem'>" + Growth.fmtBig(f.log10(s)) + "</td>").join("") + "</tr>";
+    });
+    $("grid").innerHTML = g;
+  }
+  ["xmax", "ymode"].forEach((id) => $(id).addEventListener("input", draw));
+  ["n", "speed"].forEach((id) => $(id).addEventListener("input", table));
+  window.addEventListener("resize", draw);
+  draw(); table();
+})();
+</script>
+{% endblock %}

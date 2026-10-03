@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Adaptive Practice' if mode == 'adaptive' else 'Practice Session' }}{% endblock %}
+{% block content %}
+<div id="setup">
+  <div class="page-head">
+    <div>
+      {% if mode == 'adaptive' %}
+      <h1>Adaptive Practice</h1>
+      <p>Questions are drawn more often from topics where your first-try accuracy is lowest, and at a level matched to how well you know each topic. Strong topics still appear, just less often.</p>
+      {% else %}
+      <h1>Practice Session</h1>
+      <p>Configure a session. At the end you get a breakdown - not just a score.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="grid {{ 'grid-2' if mode == 'adaptive' else '' }}">
+    <div class="card pad-lg">
+      <div class="config-row"><span class="lab">Number of questions</span>
+        <div class="seg" data-key="count"><button data-v="5">5</button><button data-v="10" class="on">10</button><button data-v="20">20</button><button data-v="0">Unlimited</button></div>
+      </div>
+      {% if mode != 'adaptive' %}
+      <div class="config-row"><span class="lab">Difficulty</span>
+        <div class="seg" data-key="difficulty"><button data-v="beginner">Beginner</button><button data-v="intermediate">Intermediate</button><button data-v="advanced">Advanced</button><button data-v="mixed" class="on">Mixed</button></div>
+      </div>
+      {% endif %}
+      <div class="config-row" style="align-items:flex-start"><span class="lab">Topic</span>
+        <div class="seg topic-grid" data-key="topic" style="flex-wrap:wrap;border:0">
+          {% for k, v in SESSION_TOPICS.items() %}<button data-v="{{ k }}" class="{{ 'on' if k == 'mixed' else '' }}" style="border:1px solid var(--border-strong);border-radius:7px;margin:0 4px 4px 0">{{ v }}</button>{% endfor %}
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:18px">
+        <button class="btn primary" id="start">Start session</button>
+        <span class="muted" id="poolinfo" style="font-size:.88rem"></span>
+      </div>
+    </div>
+    {% if mode == 'adaptive' %}
+    <div class="card pad-lg">
+      <h3>Your topic statistics</h3>
+      <p class="muted" style="font-size:.88rem">First-try accuracy (smoothed) and the resulting share of adaptive questions. Topics you haven't tried start at a neutral 70%.</p>
+      <table class="data">
+        <tr><th>Topic</th><th class="num">Accuracy</th><th class="num">Answered</th><th class="num">Weight</th></tr>
+        {% for w in weak %}
+        <tr><td>{{ w.label }}</td>
+          <td class="num">{% if w.accuracy is not none %}<span class="badge {{ 'red' if w.accuracy < 55 else ('amber' if w.accuracy < 75 else 'green') }}">{{ w.accuracy }}%</span>{% else %}<span class="faint">–</span>{% endif %}</td>
+          <td class="num">{{ w.answered }}</td>
+          <td class="num" style="width:110px"><div class="bar amber" title="{{ w.share }}%"><span style="width:{{ [w.share * 4, 100]|min }}%"></span></div></td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div id="session"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script>
+(function () {
+  const mode = {{ mode|tojson }};
+  const cfg = { count: 10, difficulty: "mixed", topic: "mixed" };
+  const params = new URLSearchParams(location.search);
+  document.querySelectorAll(".seg").forEach((seg) => {
+    const key = seg.dataset.key;
+    if (params.get(key)) cfg[key] = key === "count" ? +params.get(key) : params.get(key);
+    seg.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", String(cfg[key]) === b.dataset.v);
+      b.addEventListener("click", () => {
+        seg.querySelectorAll("button").forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        cfg[key] = key === "count" ? +b.dataset.v : b.dataset.v;
+      });
+    });
+  });
+  const setup = document.getElementById("setup"), root = document.getElementById("session");
+  const runner = new SessionRunner(root, { onRestart: () => { root.innerHTML = ""; setup.classList.remove("hidden"); } });
+  document.getElementById("start").addEventListener("click", () => {
+    setup.classList.add("hidden");
+    runner.start(Object.assign({ mode: mode }, cfg));
+  });
+})();
+</script>
+{% endblock %}

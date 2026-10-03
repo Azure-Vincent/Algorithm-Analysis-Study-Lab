@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Progress{% endblock %}
+{% macro accbar(a) -%}
+{% if a is not none %}<div style="display:flex;gap:8px;align-items:center"><div class="bar {{ 'red' if a < 55 else ('amber' if a < 75 else 'green') }}" style="flex:1;min-width:80px"><span style="width:{{ a }}%"></span></div><span class="mono" style="width:40px;text-align:right">{{ a }}%</span></div>{% else %}<span class="faint">–</span>{% endif %}
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Progress</h1><p>Everything is stored locally in SQLite and survives restarts. Accuracy means correct on the first try.</p></div>
+</div>
+
+<div class="grid grid-2">
+{% for key, title in [('complexity', 'Complexity Analysis'), ('pseudocode', 'Pseudocode Practice'), ('tn', 'T(n) Analysis')] %}
+  {% set t = ts[key] %}
+  <div class="card pad-lg track-card {{ {'pseudocode': 'pc', 'tn': 'tn'}.get(key, '') }}">
+    <h2>{{ title }}</h2>
+    <div class="stat-grid">
+      <div class="stat"><span class="v">{{ t.solved }}/{{ t.total_exercises }}</span><span class="l">exercises solved</span></div>
+      <div class="stat"><span class="v">{{ t.answered }}</span><span class="l">questions answered</span></div>
+      <div class="stat"><span class="v">{{ t.accuracy if t.accuracy is not none else '–' }}{{ '%' if t.accuracy is not none }}</span><span class="l">first-try accuracy</span></div>
+      <div class="stat"><span class="v">{{ t.eventual if t.eventual is not none else '–' }}{{ '%' if t.eventual is not none }}</span><span class="l">eventually correct</span></div>
+      <div class="stat"><span class="v">{{ t.hinted }}</span><span class="l">questions with hints</span></div>
+      <div class="stat"><span class="v">{{ t.avg_attempts if t.avg_attempts is not none else '–' }}</span><span class="l">avg attempts</span></div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+{% set o = tnst.overall %}
+<div class="card pad-lg" style="margin-top:16px" id="tn-progress">
+  <h3>T(n) Analysis - T(n) and Θ graded separately</h3>
+  {% if o.answered %}
+  <div class="stat-grid">
+    <div class="stat"><span class="v">{{ o.exercises_attempted }}</span><span class="l">exercises attempted</span></div>
+    <div class="stat"><span class="v">{{ o.correct_T }}</span><span class="l">correct T(n) (eventually)</span></div>
+    <div class="stat"><span class="v">{{ o.correct_theta }}</span><span class="l">correct Θ (eventually)</span></div>
+    <div class="stat"><span class="v">{{ o.first_try if o.first_try is not none else '–' }}{{ '%' if o.first_try is not none }}</span><span class="l">first-attempt accuracy</span></div>
+    <div class="stat"><span class="v">{{ o.hinted }}</span><span class="l">with hints</span></div>
+    <div class="stat"><span class="v">{{ o.open_mistakes }}</span><span class="l">open T(n) mistakes</span></div>
+  </div>
+  <div class="grid grid-2" style="margin-top:12px">
+    <table class="data"><tr><th>Topic</th><th class="num">Answered</th><th style="width:28%">T(n) first try</th><th style="width:28%">Θ first try</th></tr>
+      {% for r in tnst.by_topic if r.answered %}<tr><td>{{ r.label }}</td><td class="num">{{ r.answered }}</td><td>{{ accbar(r.t_first) }}</td><td>{{ accbar(r.theta_first) }}</td></tr>{% endfor %}
+      <tr><td><b>Overall</b></td><td class="num">{{ o.answered }}</td><td>{{ accbar(o.t_first) }}</td><td>{{ accbar(o.theta_first) }}</td></tr>
+    </table>
+    <table class="data"><tr><th>Difficulty</th><th class="num">Answered</th><th style="width:28%">T(n) first try</th><th style="width:28%">Θ first try</th></tr>
+      {% for r in tnst.by_difficulty if r.answered %}<tr><td>{{ r.label }}</td><td class="num">{{ r.answered }}</td><td>{{ accbar(r.t_first) }}</td><td>{{ accbar(r.theta_first) }}</td></tr>{% endfor %}
+    </table>
+  </div>
+  {% else %}<div class="empty">No T(n) exercises answered yet. <a href="/tn">Start T(n) Analysis →</a></div>{% endif %}
+</div>
+
+<div class="grid grid-2" style="margin-top:16px">
+  <div class="card pad-lg">
+    <h3>Accuracy by topic</h3>
+    {% if topics %}
+    <table class="data"><tr><th>Topic</th><th class="num">Answered</th><th style="width:45%">First-try accuracy</th></tr>
+      {% for r in topics %}<tr><td>{{ r.label }} <span class="faint" style="font-size:.8rem">{{ {'complexity': 'C', 'pseudocode': 'P', 'tn': 'T'}.get(r.track, '') }}</span></td><td class="num">{{ r.answered }}</td><td>{{ accbar(r.accuracy) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Answer a few questions to see topic statistics.</div>{% endif %}
+  </div>
+  <div class="card pad-lg">
+    <h3>Accuracy by exercise type</h3>
+    {% if types %}
+    <table class="data"><tr><th>Type</th><th class="num">Answered</th><th class="num">Avg attempts</th><th style="width:40%">First-try</th></tr>
+      {% for r in types %}<tr><td>{{ r.label }}</td><td class="num">{{ r.answered }}</td><td class="num">{{ r.avg_attempts if r.avg_attempts is not none else '–' }}</td><td>{{ accbar(r.accuracy) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">No attempts yet.</div>{% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2" style="margin-top:16px">
+  <div class="card pad-lg">
+    <h3>Recent sessions</h3>
+    {% if sessions %}
+    <table class="data"><tr><th>Started</th><th>Mode</th><th>Settings</th><th class="num">Result</th><th></th></tr>
+      {% for s in sessions %}<tr>
+        <td class="mono" style="font-size:.85rem">{{ s.created_at.replace('T', ' ')[:16] }}</td>
+        <td>{{ s.mode }}</td>
+        <td class="muted" style="font-size:.85rem">{{ SESSION_TOPICS.get(s.config.topic, s.config.topic) if s.mode != 'review' else 'mistakes' }}{% if s.config.difficulty and s.mode == 'practice' %} · {{ s.config.difficulty }}{% endif %}</td>
+        <td class="num">{{ s.correct }}/{{ s.answered }}</td>
+        <td><a href="#" data-sid="{{ s.id }}" class="sess-link">report</a></td></tr>{% endfor %}
+    </table>
+    <div id="sess-report"></div>
+    {% else %}<div class="empty">No sessions yet.</div>{% endif %}
+  </div>
+  <div class="card pad-lg">
+    <h3>Mistakes</h3>
+    {% set open = mistakes|selectattr('status', 'equalto', 'open')|list %}
+    {% set imp = mistakes|selectattr('status', 'equalto', 'improving')|list %}
+    {% set mas = mistakes|selectattr('status', 'equalto', 'mastered')|list %}
+    <div class="stat-grid">
+      <div class="stat"><span class="v" style="color:var(--red)">{{ open|length }}</span><span class="l">open</span></div>
+      <div class="stat"><span class="v" style="color:var(--amber)">{{ imp|length }}</span><span class="l">improving</span></div>
+      <div class="stat"><span class="v" style="color:var(--green)">{{ mas|length }}</span><span class="l">mastered</span></div>
+    </div>
+    <p style="margin-top:12px"><a href="/review">Go to Review Mistakes →</a></p>
+    <hr>
+    <h3>Reset</h3>
+    <p class="muted" style="font-size:.9rem">Deletes all attempts, sessions, mistakes, and saved solutions. The exercise bank stays.</p>
+    <button class="btn danger small" id="reset">Reset all progress…</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll(".sess-link").forEach((a) => a.addEventListener("click", async (e) => {
+  e.preventDefault();
+  const s = await BT.api("/api/session/" + a.dataset.sid + "/summary");
+  const box = document.getElementById("sess-report");
+  const topics = s.difficult_topics.map((d) => BT.esc(d.label) + " (" + d.missed + "/" + d.total + " missed)").join(", ") || "none";
+  box.innerHTML = '<div class="callout" style="margin-top:12px"><b>Session ' + BT.esc(s.session.created_at.replace("T", " ").slice(0, 16)) + "</b><br>" +
+    "Correct: " + s.correct + " · Incorrect: " + s.incorrect + " · Accuracy: " + (s.accuracy == null ? "–" : s.accuracy + "%") +
+    " · Without hints: " + s.no_hints + " · After hints: " + s.after_hints + " · Avg attempts: " + (s.avg_attempts == null ? "–" : s.avg_attempts) +
+    "<br>Difficult topics: " + topics + "</div>";
+}));
+document.getElementById("reset").addEventListener("click", async () => {
+  const v = prompt("This permanently deletes your progress. Type RESET to confirm.");
+  if (v !== "RESET") return;
+  await BT.api("/api/reset", { confirm: "RESET" });
+  location.reload();
+});
+</script>
+{% endblock %}

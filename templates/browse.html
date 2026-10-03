@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+{% set DESC = {
+  'identify': 'Read the code, pick the tightest bound. Full breakdown after you submit.',
+  'bounds': 'Separate O, Θ and Ω. Several bounds can be valid; only one Θ is tight.',
+  'analyze': 'Derive it yourself with a scratch area, then commit to an answer.',
+  'count': 'Count exact executions for a concrete n, generalize, then simplify.',
+  'compare': 'Put numbers on growth: crossovers, ratios, doubling experiments.',
+  'cases': 'Best, average and worst case separately - and how they relate to O/Θ/Ω.',
+  'generated': 'Freshly generated loop structures (see Generator).',
+  'fill': 'Small pieces first: fill in the missing expressions.',
+  'order': 'Reassemble scrambled statements into a working algorithm.',
+  'complete': 'Write only the missing section of a partial algorithm.',
+  'write': 'Write the whole algorithm from a description. Tested, not string-matched.',
+  'debug': 'Find the line with the logical error, then fix it.',
+  'trace': 'Execute by hand and fill in the variables after each step.',
+  'to_complexity': 'Analyze algorithms you built in the lab.'} %}
+<div class="page-head">
+  <div>
+    <h1>{{ heading }}</h1>
+    <p>{% if track == 'complexity' %}Pick a mode or a level. Levels go from constant-time basics to recursion.{% else %}Start with small pieces and build up to full algorithms. Everything you write is run against test cases.{% endif %}</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="/practice?topic={{ 'mixed_complexity' if track == 'complexity' else 'pseudocode' }}">Start a practice session</a>
+  </div>
+</div>
+
+<div class="mode-cards" id="modes">
+  <div class="mode-card active" data-type=""><b>All exercise types</b><span>Everything in this track</span></div>
+  {% for key, label in types.items() if key != 'generated' %}
+  <div class="mode-card" data-type="{{ key }}"><b>{{ label }}</b><span>{{ DESC.get(key, '') }}</span></div>
+  {% endfor %}
+</div>
+{% if track == 'complexity' %}
+<p class="muted" style="margin-top:-8px">Mode E also has an interactive calculator on the <a href="/compare">Compare page</a>.</p>
+{% endif %}
+
+<div class="filters">
+  <label class="field">Level
+    <select id="f-level"><option value="">All levels</option>{% for k, v in LEVELS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  </label>
+  <label class="field">Topic
+    <select id="f-topic"><option value="">All topics</option>{% for k, v in topics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  </label>
+  <label class="field">Status
+    <select id="f-status"><option value="">Any status</option><option value="unseen">Not tried</option><option value="solved">Solved</option><option value="missed">Missed</option><option value="improving">Improving</option><option value="mastered">Mastered</option></select>
+  </label>
+  <span class="spacer"></span>
+  <span class="muted" id="count"></span>
+</div>
+<div id="list" class="ex-list"><p class="muted">Loading…</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const track = {{ track|tojson }};
+  const LEVELS = {{ LEVELS|tojson }};
+  let all = [], type = "";
+  const $ = (id) => document.getElementById(id);
+  document.querySelectorAll("#modes .mode-card").forEach((c) => c.addEventListener("click", () => {
+    document.querySelectorAll("#modes .mode-card").forEach((x) => x.classList.remove("active"));
+    c.classList.add("active"); type = c.dataset.type; draw();
+  }));
+  ["f-level", "f-topic", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
+  const params = new URLSearchParams(location.search);
+  if (params.get("type")) { type = params.get("type"); document.querySelectorAll("#modes .mode-card").forEach((c) => c.classList.toggle("active", c.dataset.type === type)); }
+  if (params.get("level")) $("f-level").value = params.get("level");
+
+  function draw() {
+    const lv = $("f-level").value, tp = $("f-topic").value, st = $("f-status").value;
+    const rows = all.filter((r) => (!type || r.type === type) && (!lv || String(r.level) === lv) && (!tp || r.topic === tp) && (!st || r.status === st));
+    $("count").textContent = rows.length + " exercise" + (rows.length === 1 ? "" : "s");
+    const list = $("list");
+    list.innerHTML = "";
+    if (!rows.length) { list.innerHTML = '<div class="empty">No exercises match these filters.</div>'; return; }
+    let lastLevel = null;
+    const ids = rows.map((r) => r.id);
+    rows.forEach((r) => {
+      if (r.level !== lastLevel) { list.appendChild(BT.el("div", { class: "level-head", text: LEVELS[r.level] })); lastLevel = r.level; }
+      const a = BT.el("a", { class: "ex-item", href: "/exercise/" + encodeURIComponent(r.id) + "?ctx=free" });
+      a.innerHTML = '<span class="status-dot ' + r.status + '" title="' + BT.statusLabel(r.status) + '"></span>' +
+        '<span><span class="title">' + BT.esc(r.title) + '</span><br><span class="muted" style="font-size:.85rem">' + BT.esc(r.topic_label) + "</span></span>" +
+        '<span class="meta"><span class="badge">' + BT.esc(r.type_label) + '</span><span class="badge">' + BT.esc(r.difficulty) + "</span></span>";
+      a.addEventListener("click", () => sessionStorage.setItem("bt_list", JSON.stringify(ids)));
+      list.appendChild(a);
+    });
+  }
+  BT.api("/api/exercises?track=" + track).then((rows) => { all = rows; draw(); }).catch((e) => { $("list").innerHTML = '<div class="callout red">' + BT.esc(e.message) + "</div>"; });
+})();
+</script>
+{% endblock %}

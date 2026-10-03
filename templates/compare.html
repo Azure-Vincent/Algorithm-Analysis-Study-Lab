@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Compare Algorithms{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Compare algorithms <span class="badge">Mode E</span></h1>
+  <p>Give two algorithms a growth rate and a constant factor, then see how their operation counts compare as n grows.</p></div>
+</div>
+<div class="card pad-lg">
+  <div class="grid grid-2">
+    {% for side, def, c in [('A', 'n', 100), ('B', 'n²', 1)] %}
+    <div class="part" style="margin:0">
+      <div class="plabel">Algorithm {{ side }}</div>
+      <div class="range-row">
+        <label class="field">Growth <select id="cls{{ side }}"></select></label>
+        <label class="field">Constant factor <input type="number" id="coef{{ side }}" value="{{ c }}" min="0.001" step="any" style="width:110px"></label>
+      </div>
+      <div class="muted mono" id="formula{{ side }}" style="margin-top:6px"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="range-row" style="margin-top:14px">
+    <label class="field">Values of n to compare (comma separated) <input type="text" id="ns" value="10, 50, 100, 1000, 100000" style="width:320px"></label>
+    <label class="field">Chart: n up to <input type="range" id="xmax" min="5" max="1000" value="200"></label><span class="mono" id="xmax-v"></span>
+    <label class="field"><span>Y-axis</span><select id="ylog"><option value="0">linear</option><option value="1">logarithmic</option></select></label>
+  </div>
+  <div id="verdict" class="callout" style="margin-top:14px"></div>
+  <table class="data" id="tbl" style="margin-top:8px"></table>
+  <div class="chart-wrap" style="margin-top:14px"><canvas class="chart" id="chart"></canvas></div>
+</div>
+
+<div class="card pad-lg" style="margin-top:16px">
+  <h3>Comparison exercises</h3>
+  <div class="ex-list">
+    {% for e in exercises %}
+    <a class="ex-item" href="/exercise/{{ e.id }}?ctx=free"><span class="status-dot"></span><span class="title">{{ e.title }}</span><span class="meta"><span class="badge">{{ e.difficulty }}</span></span></a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  ["A", "B"].forEach((s, i) => {
+    const sel = $("cls" + s);
+    Growth.FUNCS.forEach((f) => sel.appendChild(BT.el("option", { value: f.key, text: "O(" + f.label + ")" })));
+    sel.value = params.get("cls" + s) || (i === 0 ? "n" : "n²");
+  });
+  function spec(s) { return { key: $("cls" + s).value, coef: Math.max(1e-9, +$("coef" + s).value || 1) }; }
+  function l10(sp, n) { return Growth.BY_KEY[sp.key].log10(n) + Math.log10(sp.coef); }
+  function crossover(a, b) {
+    // last n (scanning up to 10^6) where the ordering changes
+    let prev = null, last = null;
+    const pts = [];
+    for (let n = 1; n <= 200; n++) pts.push(n);
+    for (let n = 250; n <= 1e6; n = Math.ceil(n * 1.05)) pts.push(n);
+    pts.forEach((n) => {
+      const d = l10(a, n) - l10(b, n);
+      const s = Math.abs(d) < 1e-12 ? 0 : Math.sign(d);
+      if (prev !== null && s !== 0 && prev !== 0 && s !== prev) last = n;
+      if (s !== 0) prev = s;
+    });
+    return last;
+  }
+  function update() {
+    const a = spec("A"), b = spec("B");
+    $("formulaA").textContent = "operations ≈ " + a.coef + " · " + Growth.BY_KEY[a.key].label;
+    $("formulaB").textContent = "operations ≈ " + b.coef + " · " + Growth.BY_KEY[b.key].label;
+    const ns = $("ns").value.split(/[,\s]+/).map(Number).filter((x) => x >= 1 && x <= 1e9).slice(0, 10);
+    let h = "<tr><th>n</th><th class=num>A</th><th class=num>B</th><th class=num>B ÷ A</th><th>Fewer operations</th></tr>";
+    ns.forEach((n) => {
+      const la = l10(a, n), lb = l10(b, n), d = lb - la;
+      const ratio = Math.abs(d) < 15 ? Math.pow(10, d).toPrecision(3) : "10^" + d.toFixed(0);
+      h += "<tr><td class=mono>" + n.toLocaleString() + "</td><td class='num mono'>" + Growth.fmtBig(la) + "</td><td class='num mono'>" + Growth.fmtBig(lb) +
+        "</td><td class='num mono'>" + ratio + "</td><td>" + (Math.abs(d) < 1e-9 ? "tie" : (d > 0 ? "A" : "B")) + "</td></tr>";
+    });
+    $("tbl").innerHTML = h;
+    const ra = Growth.FUNCS.findIndex((f) => f.key === a.key), rb = Growth.FUNCS.findIndex((f) => f.key === b.key);
+    const x = crossover(a, b);
+    let msg;
+    if (ra === rb) msg = "Same growth class: the ratio approaches the constant " + (b.coef / a.coef).toPrecision(3) + " (B ÷ A). Constants decide the winner here.";
+    else {
+      const faster = ra < rb ? "A" : "B";
+      msg = "Asymptotically, <b>" + faster + "</b> wins: " + Growth.BY_KEY[(ra < rb ? a : b).key].label + " grows more slowly than " + Growth.BY_KEY[(ra < rb ? b : a).key].label + ".";
+      msg += x ? " The last crossover is around <b>n ≈ " + x.toLocaleString() + "</b>; below that the constant factors can favor the other algorithm." : " It is ahead (or tied) for every n ≥ 1 here.";
+    }
+    $("verdict").innerHTML = msg;
+    const N = +$("xmax").value; $("xmax-v").textContent = N;
+    Growth.drawChart($("chart"), [
+      { label: "A", color: "#6ea8fe", fn: (n) => Math.pow(10, Math.min(300, l10(a, n))) },
+      { label: "B", color: "#e6b450", fn: (n) => Math.pow(10, Math.min(300, l10(b, n))) },
+    ], { xmin: 1, xmax: N, logY: $("ylog").value === "1", xlabel: "n", marker: x && x <= N ? x : null });
+  }
+  document.querySelectorAll("select, input").forEach((e) => e.addEventListener("input", update));
+  window.addEventListener("resize", update);
+  update();
+})();
+</script>
+{% endblock %}

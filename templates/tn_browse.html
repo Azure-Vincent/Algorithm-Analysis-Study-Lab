@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}T(n) Analysis{% endblock %}
+{% macro accbar(a) -%}
+{% if a is not none %}<div style="display:flex;gap:8px;align-items:center"><div class="bar {{ 'red' if a < 55 else ('amber' if a < 75 else 'green') }}" style="flex:1;min-width:60px"><span style="width:{{ a }}%"></span></div><span class="mono" style="width:40px;text-align:right">{{ a }}%</span></div>{% else %}<span class="faint">–</span>{% endif %}
+{%- endmacro %}
+{% block content %}
+{% set o = stats.overall %}
+<div class="page-head">
+  <div>
+    <h1>T(n) Analysis</h1>
+    <p>Go from an algorithm to its operation-count function: count operations → construct T(n) → simplify → Θ.</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="/tn/reference">T(n) reference</a>
+    <a class="btn primary" href="/practice?topic=tn&difficulty=beginner">Practice: beginner</a>
+    <a class="btn" href="/practice?topic=tn&difficulty=intermediate">Intermediate</a>
+    <a class="btn" href="/practice?topic=tn&difficulty=advanced">Advanced</a>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card pad-lg">
+    <h3>How it works</h3>
+    <div class="tn-panels" style="margin-top:4px">
+      <div class="tn-panel p1"><div class="k">1 · Count</div><div class="v mono">cost × executions</div><div class="d">for every row</div></div>
+      <div class="tn-panel p1"><div class="k">2 · Construct</div><div class="v mono">T(n) = 4n² + 6n + 3</div><div class="d">operation-count model</div></div>
+      <div class="tn-panel p2"><div class="k">3 · Dominant</div><div class="v mono">4n²</div><div class="d">fastest-growing term</div></div>
+      <div class="tn-panel p3"><div class="k">4 · Classify</div><div class="v mono">Θ(n²)</div><div class="d">drop the constant</div></div>
+    </div>
+    <p class="muted" style="font-size:.9rem">Three ways to work each exercise: fill in an <b>operation table</b> row by row, enter T(n) <b>directly</b>, or follow a <b>guided derivation</b> one step at a time. T(n) and Θ are graded separately, and wrong answers get feedback on the specific slip (a missing final loop check, an inner loop counted once, n and m merged…).</p>
+    <details class="method"><summary>The counting model used everywhere in this section</summary>
+      <table class="data tn-model">{% for sym, desc, cost in TN_MODEL %}<tr><td class="mono">{{ sym }}</td><td>{{ desc }}</td><td class="num"><b>{{ cost }}</b></td></tr>{% endfor %}</table>
+    </details>
+  </div>
+  <div class="card pad-lg">
+    <h3>Your T(n) statistics</h3>
+    {% if o.answered %}
+    <div class="stat-grid">
+      <div class="stat"><span class="v">{{ o.exercises_attempted }}</span><span class="l">exercises attempted</span></div>
+      <div class="stat"><span class="v">{{ o.correct_T }}</span><span class="l">correct T(n)</span></div>
+      <div class="stat"><span class="v">{{ o.correct_theta }}</span><span class="l">correct Θ</span></div>
+      <div class="stat"><span class="v">{{ o.first_try if o.first_try is not none else '–' }}{{ '%' if o.first_try is not none }}</span><span class="l">first-attempt accuracy</span></div>
+    </div>
+    <table class="data" style="margin-top:12px"><tr><th>Topic</th><th style="width:30%">T(n) first try</th><th style="width:30%">Θ first try</th></tr>
+      {% for r in stats.by_topic if r.answered %}<tr><td>{{ r.label }}</td><td>{{ accbar(r.t_first) }}</td><td>{{ accbar(r.theta_first) }}</td></tr>{% endfor %}
+      <tr><td><b>Overall T(n)</b></td><td>{{ accbar(o.t_first) }}</td><td>{{ accbar(o.theta_first) }}</td></tr>
+    </table>
+    {% else %}<div class="empty">Solve a few exercises to see your T(n) accuracy by topic.</div>{% endif %}
+  </div>
+</div>
+
+<div class="filters" style="margin-top:20px">
+  <label class="field">Level
+    <select id="f-level"><option value="">All levels</option>{% for k, v in TN_LEVELS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  </label>
+  <label class="field">Status
+    <select id="f-status"><option value="">Any status</option><option value="unseen">Not tried</option><option value="solved">Solved</option><option value="missed">Missed</option><option value="improving">Improving</option><option value="mastered">Mastered</option></select>
+  </label>
+  <span class="spacer"></span><span class="muted" id="count"></span>
+</div>
+<div id="list" class="ex-list"><p class="muted">Loading…</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const LEVELS = {{ TN_LEVELS|tojson }};
+  const $ = (id) => document.getElementById(id);
+  let all = [];
+  function draw() {
+    const lv = $("f-level").value, st = $("f-status").value;
+    const rows = all.filter((r) => (!lv || String(r.level) === lv) && (!st || r.status === st));
+    $("count").textContent = rows.length + " exercise" + (rows.length === 1 ? "" : "s");
+    const list = $("list");
+    list.innerHTML = rows.length ? "" : '<div class="empty">No exercises match these filters.</div>';
+    const ids = rows.map((r) => r.id);
+    let last = null;
+    rows.forEach((r) => {
+      if (r.level !== last) { list.appendChild(BT.el("div", { class: "level-head", text: LEVELS[r.level] })); last = r.level; }
+      const a = BT.el("a", { class: "ex-item", href: "/exercise/" + encodeURIComponent(r.id) + "?ctx=free" });
+      a.innerHTML = '<span class="status-dot ' + r.status + '" title="' + BT.statusLabel(r.status) + '"></span>' +
+        '<span><span class="title">' + BT.esc(r.title) + '</span><br><span class="muted" style="font-size:.85rem">' + BT.esc(r.topic_label) + "</span></span>" +
+        '<span class="meta"><span class="badge">' + BT.esc(r.difficulty) + "</span></span>";
+      a.addEventListener("click", () => { try { sessionStorage.setItem("bt_list", JSON.stringify(ids)); } catch (e) {} });
+      list.appendChild(a);
+    });
+  }
+  ["f-level", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
+  BT.api("/api/exercises?track=tn").then((rows) => { all = rows; draw(); }).catch((e) => { $("list").innerHTML = '<div class="callout red">' + BT.esc(e.message) + "</div>"; });
+})();
+</script>
+{% endblock %}

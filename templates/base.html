@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Big-O Trainer{% endblock %} · Big-O Trainer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23161a21'/><text x='16' y='22' font-size='15' text-anchor='middle' fill='%236ea8fe' font-family='monospace'>O()</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  {% set nav = [
+    ('/', 'Dashboard'), ('/complexity', 'Complexity'), ('/tn', 'T(n) Analysis'), ('/pseudocode', 'Pseudocode Lab'), ('/practice', 'Practice'),
+    ('/adaptive', 'Adaptive'), ('/review', 'Review'), ('/progress', 'Progress'), ('/learn', 'Learn'),
+    ('/visualizer', 'Visualizer'), ('/compare', 'Compare'), ('/generator', 'Generator')] %}
+  <nav class="topnav">
+    <div class="inner">
+      <a class="brand" href="/"><span>O(·)</span> Big-O Trainer</a>
+      <div class="navlinks">
+        {% for href, label in nav %}
+        <a href="{{ href }}" class="{{ 'active' if request.path == href or (href != '/' and request.path.startswith(href)) else '' }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </nav>
+  <main class="container {% block container_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }}{% endblock %}
+{% block content %}
+<div class="empty" style="margin-top:40px">
+  <h2>{{ code }} · {{ message }}</h2>
+  <p class="muted">{% if code == 404 %}Check the address, or head back to the dashboard.{% elif code >= 500 %}Please try again in a moment. If it keeps happening, the problem has been logged.{% else %}Go back and try again.{% endif %}</p>
+  <a class="btn" href="/">Back to the dashboard</a>
+</div>
+{% endblock %}

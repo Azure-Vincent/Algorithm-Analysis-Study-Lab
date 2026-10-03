@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ ex_title }}{% endblock %}
+{% block container_class %}{{ '' if track == 'tn' else 'narrow' }}{% endblock %}
+{% block content %}
+<div class="btn-row" style="margin-bottom:12px">
+  <a class="btn small ghost" href="{{ back[0] }}">← Back to {{ back[1] }}</a>
+  <span class="spacer"></span>
+  <button class="btn small ghost hidden" id="prev">← Previous</button>
+  <span class="muted" id="pos" style="font-size:.88rem"></span>
+</div>
+<div id="runner"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script>
+(function () {
+  const id = {{ ex_id|tojson }};
+  let list = [];
+  try { list = JSON.parse(sessionStorage.getItem("bt_list") || "[]"); } catch (e) { list = []; }
+  const i = list.indexOf(id);
+  const go = (j) => { location.href = "/exercise/" + encodeURIComponent(list[j]) + "?ctx={{ context }}"; };
+  const opts = { context: {{ context|tojson }} };
+  if (i >= 0) {
+    document.getElementById("pos").textContent = (i + 1) + " / " + list.length;
+    if (i > 0) { const p = document.getElementById("prev"); p.classList.remove("hidden"); p.onclick = () => go(i - 1); }
+    if (i + 1 < list.length) { opts.onNext = () => go(i + 1); opts.nextLabel = "Skip →"; opts.nextDoneLabel = "Next exercise →"; }
+  }
+  new ExerciseRunner(document.getElementById("runner"), opts).load(id);
+})();
+</script>
+{% endblock %}
