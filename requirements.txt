@@ -1,3 +1,5 @@
+# Runtime dependencies (python app.py, python launcher.py, and the packaged executable)
 Flask>=3.1,<4
 sympy>=1.12,<2
 python-dotenv>=1.0,<2
+waitress>=3.0,<4

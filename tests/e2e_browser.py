@@ -5,6 +5,7 @@ restarts the server and checks that everything persisted.
 
     pip install playwright        # Chromium must be available
     python tests/e2e_browser.py
+    E2E_EXE=dist/AlgorithmStudy python tests/e2e_browser.py     # same walkthrough against the packaged app
 """
 import os
 import re
@@ -43,7 +44,9 @@ def free_port():
 
 def start_server(db_path, port):
     env = dict(os.environ, BIGO_DB=db_path, PORT=str(port), APP_ENV="development")
-    proc = subprocess.Popen([sys.executable, "app.py"], cwd=ROOT, env=env,
+    exe = os.environ.get("E2E_EXE")
+    cmd = [os.path.abspath(exe), "--no-browser", "--port", str(port)] if exe else [sys.executable, "app.py"]
+    proc = subprocess.Popen(cmd, cwd=ROOT if not exe else tempfile.gettempdir(), env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(100):
         try:

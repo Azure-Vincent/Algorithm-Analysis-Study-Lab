@@ -15,5 +15,10 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# home-lab Docker data (homelab/compose.yaml)
-homelab/data/
+# PyInstaller output (AlgorithmStudy.spec IS committed: it's the build recipe)
+build/
+dist/
+*.exe
+*.pyz
+warn-*.txt
+xref-*.html

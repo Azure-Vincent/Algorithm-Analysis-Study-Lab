@@ -617,7 +617,7 @@ class TestSecurity(unittest.TestCase):
             db.init_db(force_reseed=True)
             self.assertEqual(count(), before)
         self.assertGreaterEqual(len(self.c.get("/api/mistakes?status=all").get_json()), 1)
-        self.assertEqual(self.c.get("/healthz").get_json(), {"ok": True})
+        self.assertEqual(self.c.get("/healthz").get_json(), {"ok": True, "app": "bigo-trainer"})
 
     def test_unknown_session_id_is_ignored(self):
         r = self.c.post("/api/exercise/c2-nested-two/submit", json={"answer": {"parts": {"answer": "n"}}, "session_id": "made-up-session"})
@@ -629,3 +629,24 @@ class TestSecurity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLauncher(unittest.TestCase):
+    """The desktop launcher's helpers (the full packaged app is covered by tests/smoke_exe.py)."""
+
+    def test_user_data_dir_is_outside_the_app(self):
+        import launcher
+        d = launcher.user_data_dir()
+        self.assertTrue(d.endswith("AlgorithmStudy"))
+        self.assertFalse(os.path.abspath(d).startswith(ROOT))
+
+    def test_sandbox_flag_matches(self):
+        import launcher
+        from engine import sandbox
+        self.assertEqual(launcher.SANDBOX_FLAG, sandbox.SANDBOX_FLAG)
+
+    def test_health_ignores_closed_ports(self):
+        import launcher
+        port = launcher.free_port()
+        self.assertIsNone(launcher.health(port, timeout=0.3))
+        self.assertTrue(launcher.port_is_free(port))

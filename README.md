@@ -33,11 +33,42 @@ with accounts) is kept: it all belongs to the single local profile.
 Use another port with `PORT=5050 python app.py` (PowerShell: `$env:PORT=5050; python app.py`).
 The server listens on 127.0.0.1 only, so other machines on your network can't reach it.
 
+### Desktop app (AlgorithmStudy.exe)
+
+The app can also run as a desktop program, without typing any commands. Double-click **AlgorithmStudy.exe**:
+it starts the app on a local server (Waitress, bound to 127.0.0.1 only), waits until it's ready, and opens
+your default browser. A small window shows the address. Keep it open while you study, and close it (or press
+Ctrl+C) to quit. Starting it again while it's already running just opens the browser on the running copy.
+
+**Get the .exe:** download it from the repository's **Releases** page (built automatically by GitHub
+Actions for every `v*` tag), or build it yourself:
+```powershell
+git clone https://github.com/YOUR-USERNAME/bigo-trainer.git
+cd bigo-trainer
+build.bat
+```
+`build.bat` creates `.venv` if needed, installs `requirements-build.txt` if anything is missing, removes the old
+`build\` and `dist\` folders, runs PyInstaller with `AlgorithmStudy.spec`, and prints where the result is:
+**`dist\AlgorithmStudy.exe`** (a single file you can copy anywhere). On macOS/Linux, `./build.sh` builds `dist/AlgorithmStudy`.
+Windows may show "Windows protected your PC" the first time, because the .exe isn't code-signed: click
+*More info → Run anyway*.
+
+**Where the desktop app keeps your progress:** `%LOCALAPPDATA%\AlgorithmStudy\trainer.db`
+(macOS: `~/Library/Application Support/AlgorithmStudy/`, Linux: `~/.local/share/AlgorithmStudy/`).
+It's outside the executable, so closing, updating or rebuilding the app never resets it. Running from source
+(`python app.py`) keeps using `instance/trainer.db`. To carry progress over, copy that file to the folder above
+(with the app closed). Options: `AlgorithmStudy.exe --port 5050`, `--data-dir D:\Study`, or set `BIGO_DB`.
+
+To try the desktop behaviour from source: `pip install -r requirements.txt` then `python launcher.py`.
+Check a build with `python tests/smoke_exe.py dist\AlgorithmStudy.exe` (starts it, exercises pages, grading and
+the pseudocode sandbox, checks it only listens on 127.0.0.1, restarts it and confirms progress persisted).
+
 ### Tests
 ```bash
-python -m unittest discover -s tests -v      # 73 tests: content, parser security, grading, API, stats, persistence
+python -m unittest discover -s tests -v      # 76 tests: content, parser security, grading, API, stats, persistence
 pip install playwright                         # optional: browser walkthrough (needs Chromium)
 python tests/e2e_browser.py                    # starts its own server on a temporary database
+E2E_EXE=dist/AlgorithmStudy python tests/e2e_browser.py   # same walkthrough against a built executable
 ```
 The browser script walks the whole T(n) workflow: open the app → T(n) Analysis → beginner session in
 operation-table mode → T(n) and Θ → nested-loop problem with a hint → wrong T(n) with targeted feedback →
@@ -84,6 +115,10 @@ input sizes, including the best and worst cases (`python -c "from data.tn_bank i
 ## Project layout
 ```
 app.py              Flask app factory, pages, JSON API, error handling, security headers
+launcher.py         desktop launcher: Waitress on 127.0.0.1, opens the browser, per-user data folder
+AlgorithmStudy.spec PyInstaller build recipe; build.bat / build.sh run it
+requirements-build.txt  build-only dependencies (PyInstaller) on top of requirements.txt
+.github/workflows/  builds and smoke-tests the Windows .exe, attaches it to Releases
 profile.py          the single local profile; API writes must be JSON
 config.py           settings from environment variables (.env.example)
 db.py               SQLite schema, migrations, seeding, queries
@@ -97,7 +132,7 @@ engine/
 data/               exercise banks (tn_bank.py holds the T(n) exercises)
 templates/          Jinja pages (tn_browse.html, tn_reference.html, …)
 static/css, static/js   styles; runner.js, tn.js (T(n) screen), session.js, …
-tests/              test_app.py, test_tn.py, e2e_browser.py
+tests/              test_app.py, test_tn.py, e2e_browser.py, smoke_exe.py
 ```
 
 Your data lives in `instance/trainer.db`. Back it up by copying the file, or delete it to start over.

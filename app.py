@@ -91,7 +91,7 @@ def create_app(db_path=None, env=None):
     @app.get("/healthz")
     def health():
         """Liveness check for the platform (does not wake a scaled-to-zero database)."""
-        return {"ok": True}
+        return {"ok": True, "app": "bigo-trainer"}
 
     @app.get("/healthz/db")
     def health_db():
