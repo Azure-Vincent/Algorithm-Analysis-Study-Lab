@@ -123,12 +123,10 @@ with tempfile.TemporaryDirectory() as tmp:
             page.go_back()
 
             # 3. beginner practice session in operation-table mode
+            check(page.locator("#qp .qp-start").is_enabled(), "T(n) page offers in-place practice")
+            page.click("#qp .seg[data-key=count] button[data-v='5']")
             page.click("text=Practice: beginner")
-            page.click(".seg[data-key=count] button[data-v='5']")
-            check(page.locator(".seg[data-key=topic] button.on").get_attribute("data-v") == "tn" and
-                  page.locator(".seg[data-key=difficulty] button.on").get_attribute("data-v") == "beginner",
-                  "practice page preset to T(n), beginner")
-            page.click("#start")
+            check(page.url.endswith("/tn") and page.locator("#browse").is_hidden(), "beginner session starts in place on the T(n) page")
             for i in range(5):
                 page.wait_for_selector(".tn-runner")
                 ex = current_exercise(page)

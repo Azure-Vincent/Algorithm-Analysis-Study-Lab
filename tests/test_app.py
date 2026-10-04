@@ -380,6 +380,28 @@ class TestApp(unittest.TestCase):
         rv = self.post("/api/session", {"mode": "review", "count": 0})
         self.assertGreater(rv["pool_size"], 0)
 
+    def test_06b_session_from_track_page(self):
+        """Sessions started on a track page only serve exercises matching the chosen subject, topic, type and level."""
+        for filt in [{"track": "complexity", "subtopic": "nested_loops"}, {"track": "pseudocode", "type": "trace"},
+                     {"track": "tn", "subtopic": "tn_log", "level": 6}, {"track": "tn", "difficulty": "beginner"}]:
+            with self.subTest(**{k: str(v) for k, v in filt.items()}):
+                s = self.post("/api/session", dict(filt, mode="practice", count=6))
+                self.assertGreater(s["pool_size"], 0)
+                for _ in range(6):
+                    n = self.post(f"/api/session/{s['id']}/next")
+                    self.assertFalse(n["done"])
+                    ex = BY_ID[n["exercise_id"]]
+                    self.assertEqual(ex["track"], filt["track"])
+                    for key, col in (("subtopic", "topic"), ("type", "type"), ("level", "level"), ("difficulty", "difficulty")):
+                        if key in filt:
+                            self.assertEqual(ex[col], filt[key])
+        # filters only apply with a valid track; an impossible combination yields an empty session, not generated filler
+        s = self.post("/api/session", {"mode": "practice", "count": 3, "track": "tn", "subtopic": "nested_loops"})
+        self.assertEqual(s["pool_size"], 0)
+        self.assertTrue(self.post(f"/api/session/{s['id']}/next")["done"])
+        s = self.post("/api/session", {"mode": "practice", "count": 3, "track": "bogus", "subtopic": "tn_log"})
+        self.assertNotIn("subtopic", s["config"])
+
     def test_07_generator_api(self):
         r = self.post("/api/generate", {"family": "nested", "seed": 7})
         v = self.client.get(f"/api/exercise/{r['id']}").get_json()

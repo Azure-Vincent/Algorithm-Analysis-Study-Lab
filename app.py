@@ -388,6 +388,17 @@ def create_app(db_path=None, env=None):
         topic = body.get("topic") if body.get("topic") in SESSION_TOPICS else "mixed"
         cfg = {"count": count, "difficulty": difficulty, "topic": topic,
                "adaptive": mode == "adaptive", "review": mode == "review"}
+        # optional narrowing from a track page: subject, catalog topic, exercise type and level
+        track = body.get("track") if body.get("track") in TRACK_LABELS else None
+        if track:
+            cfg["track"] = track
+            cfg["topic"] = "mixed"
+            if body.get("subtopic") in TOPICS:
+                cfg["subtopic"] = body["subtopic"]
+            if body.get("type") in TYPES:
+                cfg["type"] = body["type"]
+            if body.get("level") not in (None, ""):
+                cfg["level"] = _int(body.get("level"), 1, 1, 9)
         sid = uuid.uuid4().hex
         db.create_session(sid, mode, cfg)
         pool = stats.build_pool(cfg)

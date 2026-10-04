@@ -167,10 +167,17 @@ def matches_topic(ex_row, topic):
     return topic in ex_row["tags"]
 
 
+def matches_filters(ex_row, config):
+    """Optional narrowing used when a session is started from a track page."""
+    return all(config.get(key) in (None, "") or ex_row[col] == config[key]
+               for key, col in (("track", "track"), ("subtopic", "topic"), ("type", "type"), ("level", "level")))
+
+
 def build_pool(config):
     rows = db.list_exercises()
     diff = config.get("difficulty")
-    pool = [r for r in rows if (diff in (None, "", "mixed") or r["difficulty"] == diff) and matches_topic(r, config.get("topic"))]
+    pool = [r for r in rows if (diff in (None, "", "mixed") or r["difficulty"] == diff) and matches_topic(r, config.get("topic"))
+            and matches_filters(r, config)]
     if config.get("review"):
         wanted = {m["exercise_id"] for m in db.list_mistakes() if m["status"] != "mastered"}
         allrows = db.list_exercises(source=None)
@@ -179,6 +186,8 @@ def build_pool(config):
 
 
 def _generated_question(config, rng):
+    if config.get("track"):
+        return None  # a narrowed session only serves bank exercises that match its filters
     fams = GEN_FAMILY.get(config.get("topic") or "mixed")
     if not fams:
         return None
