@@ -8,20 +8,25 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-  {% set nav = [
-    ('/', 'Dashboard'), ('/complexity', 'Complexity'), ('/tn', 'T(n) Analysis'), ('/pseudocode', 'Pseudocode Lab'), ('/practice', 'Practice'),
-    ('/adaptive', 'Adaptive'), ('/review', 'Review'), ('/progress', 'Progress'), ('/learn', 'Learn'),
-    ('/visualizer', 'Visualizer'), ('/compare', 'Compare'), ('/generator', 'Generator')] %}
   <nav class="topnav">
     <div class="inner">
       <a class="brand" href="/"><span>O(·)</span> Big-O Trainer</a>
       <div class="navlinks">
-        {% for href, label in nav %}
-        <a href="{{ href }}" class="{{ 'active' if request.path == href or (href != '/' and request.path.startswith(href)) else '' }}">{{ label }}</a>
+        {% for href, label in NAV %}
+        <a href="{{ href }}" class="{{ 'active' if NAV_SECTION == href else '' }}">{{ label }}</a>
         {% endfor %}
       </div>
     </div>
   </nav>
+  {% if NAV_SECTION in SUBNAV %}
+  <nav class="subnav" aria-label="{{ dict(NAV)[NAV_SECTION] }}">
+    <div class="inner">
+      {% for href, label in SUBNAV[NAV_SECTION] %}
+      <a href="{{ href }}" class="{{ 'active' if request.path == href or (href == '/learn/tn' and request.path == '/tn/reference') else '' }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </nav>
+  {% endif %}
   <main class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>

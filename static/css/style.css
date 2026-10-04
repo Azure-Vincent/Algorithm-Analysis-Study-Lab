@@ -72,6 +72,11 @@ small, .muted { color: var(--muted); }
 }
 .navlinks a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 .navlinks a.active { color: var(--text); background: var(--surface-3); }
+.subnav { background: var(--surface); border-bottom: 1px solid var(--border); }
+.subnav .inner { max-width: 1200px; margin: 0 auto; padding: 6px 20px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.subnav a { color: var(--muted); padding: 5px 11px; border-radius: 999px; white-space: nowrap; font-size: .88rem; border: 1px solid transparent; }
+.subnav a:hover { color: var(--text); text-decoration: none; border-color: var(--border-strong); }
+.subnav a.active { color: var(--accent); background: var(--accent-soft); }
 .container { max-width: 1200px; margin: 0 auto; padding: 26px 20px 60px; }
 .narrow { max-width: 900px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -377,13 +382,10 @@ canvas.chart { width: 100%; height: 380px; display: block; }
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface-3); border: 1px solid var(--border-strong); padding: 10px 16px; border-radius: 8px; z-index: 60; }
 .hidden { display: none !important; }
 
-.topnav .inner { max-width: 1440px; gap: 12px; }
 .navlinks { flex: 1; min-width: 0; }
-.navlinks a { padding: 6px 8px; font-size: .88rem; }
-@media (max-width: 1280px) { .navlinks a { padding: 6px 6px; font-size: .84rem; } }
-@media (max-width: 1150px) {
-  .topnav .inner { height: auto; flex-wrap: wrap; padding: 8px 20px; row-gap: 4px; }
-  .navlinks { order: 3; flex-basis: 100%; flex-wrap: wrap; overflow: visible; }
+@media (max-width: 560px) {
+  .topnav .inner { height: auto; flex-wrap: wrap; padding: 8px 16px; row-gap: 4px; }
+  .navlinks { order: 3; flex-basis: 100%; }
 }
 
 /* ------------------------------------------------------------------ T(n) Analysis */
@@ -454,3 +456,10 @@ canvas.chart { width: 100%; height: 380px; display: block; }
 .quick-practice .qp-info .muted { font-size: .86rem; }
 .quick-practice .qp-lab { font-size: .88rem; }
 .qp-back { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: .9rem; }
+
+/* Practice test results: one collapsible row per question */
+.test-q summary { display: block; }
+.test-q.ok { border-left: 3px solid var(--green); }
+.test-q.bad { border-left: 3px solid var(--red); }
+.test-block { margin: 8px 0; }
+.test-block pre.plain { white-space: pre-wrap; margin: 4px 0 0; }

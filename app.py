@@ -10,6 +10,7 @@ import re
 import secrets
 import sqlite3
 import uuid
+from collections import defaultdict, deque
 
 from flask import Flask, abort, g, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException
@@ -55,7 +56,7 @@ def _dev_secret_key():
         return f.read().strip()
 
 
-CONTEXTS = {"free", "practice", "adaptive", "review", "generated"}
+CONTEXTS = {"free", "practice", "adaptive", "review", "generated", "test"}
 TN_METHOD = [
     "List every statement, splitting each for-loop header into init, condition and update.",
     "Write the cost of each row under the counting model.",
@@ -64,7 +65,25 @@ TN_METHOD = [
     "Simplify T(n) into a sum of distinct terms.",
     "Keep the dominant term, drop its constant: that's the Θ class.",
 ]
-SESSION_MODES = {"practice", "adaptive", "review"}
+SESSION_MODES = {"practice", "adaptive", "review", "test"}
+
+# Header: only the basic functions. Learn and Practice group their pages under a second row of tabs.
+NAV = [("/", "Dashboard"), ("/learn", "Learn"), ("/practice", "Practice"), ("/review", "Review"), ("/progress", "Progress")]
+SUBNAV = {
+    "/learn": [("/learn", "Big O & pseudocode"), ("/learn/tn", "T(n) analysis"), ("/visualizer", "Growth visualizer"),
+               ("/compare", "Compare algorithms")],
+    "/practice": [("/practice", "Practice tests"), ("/complexity", "Complexity"), ("/tn", "T(n) Analysis"),
+                  ("/pseudocode", "Pseudocode Lab"), ("/adaptive", "Adaptive"), ("/generator", "Generator")],
+}
+SECTION_OF = {href: section for section, items in SUBNAV.items() for href, _ in items}
+SECTION_OF["/tn/reference"] = "/learn"
+
+
+def nav_section(path):
+    """Which main tab a page belongs to (exercise pages count as Practice)."""
+    if path.startswith("/exercise/"):
+        return "/practice"
+    return SECTION_OF.get(path.rstrip("/") or "/", path if path in dict(NAV) else None)
 DIFFICULTIES = {"beginner", "intermediate", "advanced", "mixed"}
 ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 
@@ -134,7 +153,8 @@ def create_app(db_path=None, env=None):
                 "COMPLEXITY_TYPES": COMPLEXITY_TYPES, "PSEUDO_TYPES": PSEUDO_TYPES,
                 "COMPLEXITY_TOPICS": COMPLEXITY_TOPICS, "PSEUDO_TOPICS": PSEUDO_TOPICS,
                 "TN_TOPICS": TN_TOPICS, "TN_LEVELS": TN_LEVELS, "TN_MODEL": tn.MODEL_RULES, "TRACK_LABELS": TRACK_LABELS,
-                "FAMILIES": generator.FAMILIES}
+                "FAMILIES": generator.FAMILIES, "NAV": NAV, "SUBNAV": SUBNAV,
+                "NAV_SECTION": nav_section(request.path)}
 
     # ------------------------------------------------------------------ pages
     @app.route("/")
@@ -154,6 +174,7 @@ def create_app(db_path=None, env=None):
     def tn_page():
         return render_template("tn_browse.html", stats=stats.tn_stats())
 
+    @app.route("/learn/tn")
     @app.route("/tn/reference")
     def tn_reference_page():
         return render_template("tn_reference.html")
@@ -175,7 +196,7 @@ def create_app(db_path=None, env=None):
 
     @app.route("/practice")
     def practice_page():
-        return render_template("practice.html", mode="practice")
+        return render_template("practice.html", mode="test")
 
     @app.route("/adaptive")
     def adaptive_page():
@@ -331,6 +352,8 @@ def create_app(db_path=None, env=None):
         instance = _ident(body.get("instance_id")) or str(uuid.uuid4())
         hints_used = _int(body.get("hints_used"), 0, 0, 20)
         context = body.get("context") if body.get("context") in CONTEXTS else "free"
+        if context == "test" and db.question_attempts(instance):
+            abort(400, description="This test question has already been answered.")
         rec = db.record_submission(instance, ex, _ident(body.get("session_id")), context, result["correct"],
                                    hints_used, result.get("answer_text", ""), result.get("correct_text", ""),
                                    _explanation(ex), _question_text(ex), parts=parts, category=result.get("category"))
@@ -339,6 +362,9 @@ def create_app(db_path=None, env=None):
         if result["correct"] and ex["type"] in ("write", "complete", "debug"):
             code = answer.get("code", "")
             db.save_user_solution(ex_id, result.get("assembled") or (code if isinstance(code, str) else ""))
+        if context == "test":
+            # practice tests give no feedback until the end-of-test report
+            return jsonify({"recorded": True, "attempt_no": rec["attempt_no"], "instance_id": instance})
         if ex["type"] == "tn" and result["correct"]:
             result["solution"] = tn.solution_payload(ex)
         # retry-style exercises keep the full solution hidden until correct or explicitly revealed
@@ -423,18 +449,45 @@ def create_app(db_path=None, env=None):
         db.update_served(sid, s["served"])
         return jsonify({"done": False, "exercise_id": ex_id, "index": len(s["served"]), "total": cfg["count"] or None})
 
+    def _summary(sid):
+        summary = stats.session_summary(sid)
+        if summary["session"]["mode"] == "test":
+            summary["review"] = _test_review(sid)
+        return summary
+
+    def _test_review(sid):
+        """Every question served in a practice test, with the answer given, the correct answer and why."""
+        rows = defaultdict(deque)
+        for q in db.session_questions(sid):
+            rows[q["exercise_id"]].append(q)
+        answers = db.session_answers(sid)
+        out = []
+        for ex_id in db.get_session(sid)["served"]:
+            ex = db.get_exercise(ex_id)
+            if not ex:
+                continue
+            q = rows[ex_id].popleft() if rows[ex_id] else None
+            answered = bool(q and q["attempts"])
+            out.append({"exercise_id": ex_id, "title": ex["title"], "track": TRACK_LABELS.get(ex["track"], ex["track"]),
+                        "topic_label": TOPICS.get(ex["topic"], ex["topic"]), "type_label": TYPES.get(ex["type"], ex["type"]),
+                        "answered": answered, "correct": bool(answered and q["correct"]),
+                        "your_answer": answers.get(q["instance_id"], "") if answered else "",
+                        "correct_answer": tn.correct_text(ex) if ex["type"] == "tn" else grading.correct_text(ex),
+                        "explanation": _explanation(ex)})
+        return out
+
     @app.post("/api/session/<sid>/end")
     def api_session_end(sid):
         if not db.get_session(sid):
             abort(404)
         db.end_session(sid)
-        return jsonify(stats.session_summary(sid))
+        return jsonify(_summary(sid))
 
     @app.get("/api/session/<sid>/summary")
     def api_session_summary(sid):
         if not db.get_session(sid):
             abort(404)
-        return jsonify(stats.session_summary(sid))
+        return jsonify(_summary(sid))
 
     # ------------------------------------------------------------------ API: stats / generator
     @app.get("/api/stats")

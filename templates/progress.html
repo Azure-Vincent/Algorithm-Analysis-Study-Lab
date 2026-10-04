@@ -76,7 +76,7 @@
       {% for s in sessions %}<tr>
         <td class="mono" style="font-size:.85rem">{{ s.created_at.replace('T', ' ')[:16] }}</td>
         <td>{{ s.mode }}</td>
-        <td class="muted" style="font-size:.85rem">{{ SESSION_TOPICS.get(s.config.topic, s.config.topic) if s.mode != 'review' else 'mistakes' }}{% if s.config.difficulty and s.mode == 'practice' %} · {{ s.config.difficulty }}{% endif %}</td>
+        <td class="muted" style="font-size:.85rem">{{ SESSION_TOPICS.get(s.config.topic, s.config.topic) if s.mode != 'review' else 'mistakes' }}{% if s.config.difficulty and s.mode in ('practice', 'test') %} · {{ s.config.difficulty }}{% endif %}</td>
         <td class="num">{{ s.correct }}/{{ s.answered }}</td>
         <td><a href="#" data-sid="{{ s.id }}" class="sess-link">report</a></td></tr>{% endfor %}
     </table>

@@ -455,6 +455,20 @@ def end_session(sid):
     c.commit()
 
 
+def question_attempts(instance_id):
+    row = conn().execute("SELECT attempts FROM questions WHERE instance_id=? AND user_id=?", (instance_id, uid())).fetchone()
+    return row["attempts"] if row else 0
+
+
+def session_answers(sid):
+    """instance_id -> the last answer submitted for it in this session."""
+    out = {}
+    for r in conn().execute("SELECT instance_id, answer_text FROM attempts WHERE session_id=? AND user_id=? AND revealed=0 ORDER BY id",
+                            (sid, uid())):
+        out[r["instance_id"]] = r["answer_text"]
+    return out
+
+
 def session_questions(sid):
     return [dict(r) for r in conn().execute("SELECT * FROM questions WHERE session_id=? AND user_id=? ORDER BY started_at", (sid, uid()))]
 

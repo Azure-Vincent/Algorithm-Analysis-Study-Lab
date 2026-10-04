@@ -65,7 +65,7 @@ the pseudocode sandbox, checks it only listens on 127.0.0.1, restarts it and con
 
 ### Tests
 ```bash
-python -m unittest discover -s tests -v      # 82 tests: content, parser security, grading, API, stats, persistence
+python -m unittest discover -s tests -v      # 84 tests: content, parser security, grading, API, stats, persistence
 pip install playwright                         # optional: browser walkthrough (needs Chromium)
 python tests/e2e_browser.py                    # starts its own server on a temporary database
 E2E_EXE=dist/AlgorithmStudy python tests/e2e_browser.py   # same walkthrough against a built executable
@@ -82,7 +82,9 @@ correction → session report → statistics → Review Mistakes retry → serve
 | **T(n) Analysis** | 67 exercises across 9 levels (constant → single loops → sequential → nested → dependent/summations → logarithmic → n, m, k → best/worst case → common algorithms). Operation-table, direct and guided modes; T(n) and Θ graded separately; reference page |
 | Pseudocode Lab | 52 exercises (fill in, order, complete, write, pseudocode → complexity) plus 16 tracing and 17 debugging exercises |
 | Course convention | 36 more exercises (30 pseudocode + 6 complexity) written like the course slides: `procedure max(a1, a2, …, an: integers)`, `:=`, 1-indexed `a_i`, one-line `if … then`, `{comments}`. Filter with **Style → Course convention**; the interpreter runs the slides' code as written |
-| Practice sessions | Start in place on any track page from the topic, mode and level you picked, or use the optional Practice tab for mixed sessions. 5 / 10 / 20 / unlimited questions. Report with accuracy, hints, attempts, difficult topics |
+| Navigation | Five tabs: Dashboard, Learn, Practice, Review, Progress. Learn holds the Big O / pseudocode reference, T(n) analysis (with the counting model), the visualizer and the comparison calculator; Practice holds the subject pages, adaptive practice, the generator and practice tests |
+| Practice with feedback | Start in place on any subject page from the topic, mode and level you picked. Every wrong answer gets feedback right away, with hints, retries and solutions |
+| Practice tests | Generated 5 / 10 / 20 / unlimited-question tests: one try per question and no feedback, hints or solutions until the end; then a report plus every question with your answer, the correct answer and the explanation |
 | Adaptive practice | Weights topics, including T(n) topics, by smoothed first-try accuracy |
 | Review Mistakes | Every miss with your answer, the correct answer, the explanation, attempts, hints and history; T(n) misses also store the mistake category. 3 clean retries → mastered |
 | Learn / Visualizer / Compare / Generator | Reference with worked examples; growth-rate charts; algorithm comparison; question generator |

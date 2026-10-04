@@ -115,10 +115,14 @@ with tempfile.TemporaryDirectory() as tmp:
             check("T(n) Analysis" in page.inner_text("main"), "dashboard shows the T(n) Analysis track")
 
             # 2. navigate to T(n) Analysis
-            page.click("nav >> text=T(n) Analysis")
+            check(page.locator(".topnav .navlinks a").count() == 5, "header shows only the five basic tabs")
+            page.click(".topnav >> text=Practice")
+            page.click(".subnav >> text=T(n) Analysis")
             page.wait_for_selector(".ex-item")
             check(page.url.endswith("/tn") and page.locator(".ex-item").count() >= 50, "T(n) section lists 50+ exercises")
-            page.click("text=T(n) reference")
+            page.click("text=How T(n) works")
+            check("/learn/tn" in page.url and page.locator(".topnav a.active").inner_text() == "Learn",
+                  "T(n) learning material lives under Learn")
             check("not a stopwatch" in page.inner_text("main") and "4n + 4" in page.inner_text("main"), "reference page with worked examples")
             page.go_back()
 

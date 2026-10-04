@@ -16,6 +16,7 @@
   TnRunner.prototype.show = function (view) {
     this.view = view;
     this.state = { instance: BT.uuid(), hints: 0, attempts: 0, correct: false, revealed: false, mode: view.mode, guidedDone: {} };
+    if (this.opts.test && this.state.mode === "guided") this.state.mode = "table";   // guided steps are checked one by one
     this.render();
   };
 
@@ -53,12 +54,14 @@
     const model = el("details", { class: "method" });
     if (v.level <= 2) model.setAttribute("open", "open");
     model.innerHTML = "<summary>Counting model - what counts as one operation</summary>" + modelTable(v.model) +
-      '<p class="muted" style="font-size:.85rem;margin:6px 0 2px">A loop <code>for (init; condition; update)</code> whose body runs I times: init 1×, condition I + 1 times (the last check fails), update I times. T(n) counts operations under this model; it is not a count of CPU instructions. <a href="/tn/reference" target="_blank">Reference →</a></p>';
+      '<p class="muted" style="font-size:.85rem;margin:6px 0 2px">A loop <code>for (init; condition; update)</code> whose body runs I times: init 1×, condition I + 1 times (the last check fails), update I times. T(n) counts operations under this model; it is not a count of CPU instructions. <a href="/learn/tn#model" target="_blank">Learn → T(n) analysis</a></p>';
     left.appendChild(model);
 
     // mode tabs
     const tabs = el("div", { class: "seg tn-tabs" });
-    [["table", "Operation table"], ["direct", "Direct"], ["guided", "Guided derivation"]].forEach(function (m) {
+    [["table", "Operation table"], ["direct", "Direct"], ["guided", "Guided derivation"]].filter(function (m) {
+      return !(self.opts.test && m[0] === "guided");
+    }).forEach(function (m) {
       const b = el("button", { type: "button", text: m[1], "data-mode": m[0] });
       b.addEventListener("click", function () { if (!self.state.correct && !self.state.revealed) { self.state.mode = m[0]; self.drawMode(); } });
       tabs.appendChild(b);
@@ -75,9 +78,9 @@
     this.hintBtn = el("button", { class: "btn", onclick: function () { self.hint(); } });
     this.submitBtn = el("button", { class: "btn primary", text: "Submit", onclick: function () { self.submit(); } });
     this.solBtn = el("button", { class: "btn ghost", text: "Show solution", onclick: function () { self.reveal(); } });
-    controls.appendChild(this.hintBtn);
+    if (!this.opts.test) controls.appendChild(this.hintBtn);
     controls.appendChild(this.submitBtn);
-    controls.appendChild(this.solBtn);
+    if (!this.opts.test) controls.appendChild(this.solBtn);
     controls.appendChild(el("span", { class: "spacer" }));
     this.statusEl = el("span", { class: "muted", style: "font-size:.88rem" });
     controls.appendChild(this.statusEl);
@@ -338,7 +341,7 @@
   };
 
   TnRunner.prototype.submit = function () {
-    if (this.state.correct || this.state.revealed || this.busy) return;
+    if (this.state.correct || this.state.revealed || this.state.recorded || this.busy) return;
     const ans = this.collect();
     const missing = this.view.cases.some(function (c) { return !(ans.T[c] || "").trim() || !(ans.theta[c] || "").trim(); });
     if (missing) { BT.toast("Fill in both T(n) and Θ" + (this.view.cases.length > 1 ? " for each case" : "") + "."); return; }
@@ -356,7 +359,7 @@
       this.state.attempts = r.attempt_no;
       this.showResult(r);
     } catch (e) { BT.toast("Error: " + e.message); }
-    finally { this.busy = false; if (!this.state.correct) this.submitBtn.disabled = false; }
+    finally { this.busy = false; if (!this.state.correct && !this.state.recorded) this.submitBtn.disabled = false; }
   };
 
   TnRunner.prototype.reveal = async function () {
@@ -390,6 +393,14 @@
   TnRunner.prototype.showResult = function (r) {
     const v = this.view, fb = this.feedback, self = this;
     fb.innerHTML = "";
+    if (r.recorded) {
+      this.state.recorded = true;
+      this.statusEl.textContent = "";
+      this.lock();
+      fb.innerHTML = '<div class="verdict info">Answer recorded <span class="sub">- results and explanations appear when you finish the test.</span></div>';
+      this.finish();
+      return;
+    }
     const extra = (r.attempt_no > 1 ? "attempt " + r.attempt_no : "") + (this.state.hints ? (r.attempt_no > 1 ? " · " : "") + this.state.hints + " hint" + (this.state.hints > 1 ? "s" : "") : "");
     fb.appendChild(el("div", { class: "verdict " + (r.correct ? "ok" : "bad"), html: (r.correct ? "✓ Correct" : "✗ Not yet") + '<span class="sub">' + esc(extra) + "</span>" }));
 

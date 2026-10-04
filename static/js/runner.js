@@ -64,9 +64,9 @@
     this.hintBtn = el("button", { class: "btn", onclick: function () { self.hint(); } });
     this.submitBtn = el("button", { class: "btn primary", text: "Submit", onclick: function () { self.submit(); } });
     this.solBtn = el("button", { class: "btn ghost", text: "Show solution", onclick: function () { self.reveal(); } });
-    controls.appendChild(this.hintBtn);
+    if (!this.opts.test) controls.appendChild(this.hintBtn);    // practice tests: no hints or solutions until the end
     controls.appendChild(this.submitBtn);
-    controls.appendChild(this.solBtn);
+    if (!this.opts.test) controls.appendChild(this.solBtn);
     if (this.hasEditor()) {
       this.resetBtn = el("button", { class: "btn ghost", text: "Reset", onclick: function () { if (self.editor) self.editor.reset(); } });
       controls.appendChild(this.resetBtn);
@@ -145,16 +145,16 @@
       self.renderPartInput(p, inputs);
       const inline = el("div", { class: "inline-result" });
       box.appendChild(inline);
-      if (v.staged && i < v.parts.length - 1) {
+      if (v.staged && !self.opts.test && i < v.parts.length - 1) {
         const chk = el("button", { class: "btn small", text: "Check this step →", style: "margin-top:10px",
           onclick: function () { self.checkStage(p, i, chk); } });
         box.appendChild(chk);
       }
-      if (v.staged && i > 0) box.classList.add("locked-part");
+      if (v.staged && !self.opts.test && i > 0) box.classList.add("locked-part");
       self.partEls[p.id] = { box: box, inputs: inputs, inline: inline };
       body.appendChild(box);
     });
-    if (v.staged) this.submitBtn.disabled = true;
+    if (v.staged && !this.opts.test) this.submitBtn.disabled = true;
   };
 
   Runner.prototype.renderPartInput = function (p, holder) {
@@ -531,6 +531,7 @@
   Runner.prototype.showResult = function (r) {
     const v = this.view, t = v.type, fb = this.feedback;
     fb.innerHTML = "";
+    if (r.recorded) { recorded(this); return; }
     const attempts = r.attempt_no > 1 ? " (attempt " + r.attempt_no + ")" : "";
     const hintsTxt = this.state.hints ? " · " + this.state.hints + " hint" + (this.state.hints > 1 ? "s" : "") + " used" : "";
     fb.appendChild(el("div", { class: "verdict " + (r.correct ? "ok" : "bad"),
@@ -553,6 +554,13 @@
       this.submitBtn.textContent = "Submit again";
     }
   };
+
+  /** Practice test: the answer is saved, but whether it was right is only shown in the end-of-test report. */
+  function recorded(runner) {
+    runner.lock();
+    runner.feedback.innerHTML = '<div class="verdict info">Answer recorded <span class="sub">- results and explanations appear when you finish the test.</span></div>';
+    runner.finish();
+  }
 
   Runner.prototype.feedbackParts = function (r) {
     const self = this, fb = this.feedback;

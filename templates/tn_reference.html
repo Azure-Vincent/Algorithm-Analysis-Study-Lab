@@ -1,9 +1,11 @@
 {% extends "base.html" %}
-{% block title %}T(n) Reference{% endblock %}
+{% block title %}Learn T(n) Analysis{% endblock %}
 {% block content %}
 <div class="learn-layout">
   <nav class="toc">
-    <div class="section-title" style="margin-top:0">T(n) reference</div>
+    <div class="section-title" style="margin-top:0">T(n) analysis</div>
+    <a href="#overview">How it works</a>
+    <a href="#model">The counting model</a>
     <a href="#what">What T(n) represents</a>
     <a href="#ops">Primitive operations</a>
     <a href="#counts">Statement execution counts</a>
@@ -16,10 +18,28 @@
     <a href="#cases">Input-dependent counts</a>
     <a href="#simplify">Simplifying T(n)</a>
     <a href="#theta">From T(n) to Θ</a>
-    <p style="margin-top:14px"><a class="btn small" href="/tn">← T(n) Analysis</a></p>
+    <p style="margin-top:14px"><a class="btn small primary" href="/tn">Practice T(n) →</a></p>
   </nav>
 
   <div class="learn">
+    <section id="overview">
+      <h2>How T(n) analysis works</h2>
+      <p>Go from an algorithm to its operation-count function: count operations → construct T(n) → simplify → Θ.</p>
+      <div class="tn-panels" style="margin-top:4px">
+        <div class="tn-panel p1"><div class="k">1 · Count</div><div class="v mono">cost × executions</div><div class="d">for every row</div></div>
+        <div class="tn-panel p1"><div class="k">2 · Construct</div><div class="v mono">T(n) = 4n² + 6n + 3</div><div class="d">operation-count model</div></div>
+        <div class="tn-panel p2"><div class="k">3 · Dominant</div><div class="v mono">4n²</div><div class="d">fastest-growing term</div></div>
+        <div class="tn-panel p3"><div class="k">4 · Classify</div><div class="v mono">Θ(n²)</div><div class="d">drop the constant</div></div>
+      </div>
+      <p>In <a href="/tn">Practice → T(n) Analysis</a> there are three ways to work each exercise: fill in an <b>operation table</b> row by row, enter T(n) <b>directly</b>, or follow a <b>guided derivation</b> one step at a time. T(n) and Θ are graded separately, and wrong answers get feedback on the specific slip (a missing final loop check, an inner loop counted once, n and m merged…).</p>
+    </section>
+
+    <section id="model">
+      <h2>The counting model</h2>
+      <p>Every T(n) exercise in this app uses the same model of what counts as one operation:</p>
+      <table class="data tn-model">{% for sym, desc, cost in TN_MODEL %}<tr><td class="mono">{{ sym }}</td><td>{{ desc }}</td><td class="num"><b>{{ cost }}</b></td></tr>{% endfor %}</table>
+    </section>
+
     <section id="what">
       <h2>What T(n) represents</h2>
       <p><b>T(n)</b> is the number of primitive operations an algorithm performs on an input of size n, counted with one fixed set of rules (the <i>counting model</i> below). It turns the structure of the code into a function you can reason about.</p>

@@ -1,4 +1,5 @@
-/* SessionRunner - drives practice, adaptive, and review sessions and renders the end-of-session report. */
+/* SessionRunner - drives practice, adaptive, review and test sessions and renders the end-of-session report.
+   Practice tests (mode "test") show no feedback per question; the report reviews every question instead. */
 (function () {
   "use strict";
   const esc = BT.esc, el = BT.el;
@@ -31,9 +32,11 @@
   SessionRunner.prototype.drawBar = function (index) {
     const self = this;
     const pct = this.total ? Math.round(100 * (index - 1) / this.total) : 0;
-    this.bar.innerHTML = "<span>Question <b>" + index + "</b>" + (this.total ? " of " + this.total : " (unlimited)") + "</span>" +
+    const test = this.config.mode === "test";
+    this.bar.innerHTML = (test ? '<span class="badge amber">Practice test · no feedback until the end</span>' : "") + "<span>Question <b>" + index + "</b>" + (this.total ? " of " + this.total : " (unlimited)") + "</span>" +
       (this.total ? '<div class="bar"><span style="width:' + pct + '%"></span></div>' : "") + '<span class="spacer"></span>';
-    this.bar.appendChild(el("button", { class: "btn small ghost", text: "End session & see report", onclick: function () { self.end(); } }));
+    this.bar.appendChild(el("button", { class: "btn small ghost", text: test ? "Finish test & see results" : "End session & see report",
+      onclick: function () { self.end(); } }));
   };
 
   SessionRunner.prototype.next = async function () {
@@ -43,11 +46,12 @@
       this.drawBar(r.index);
       const self = this;
       const isLast = this.total && r.index >= this.total;
+      const test = this.config.mode === "test";
       const runner = new ExerciseRunner(this.exHolder, {
-        context: this.config.mode, sessionId: this.sid,
+        context: this.config.mode, sessionId: this.sid, test: test,
         onNext: function () { self.next(); },
         nextLabel: "Skip →",
-        nextDoneLabel: isLast ? "Finish & see report →" : "Next question →",
+        nextDoneLabel: isLast ? (test ? "Finish & see results →" : "Finish & see report →") : "Next question →",
       });
       await runner.load(r.exercise_id);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -65,7 +69,8 @@
     const self = this;
     this.root.innerHTML = "";
     const box = el("div", { class: "card pad-lg" });
-    box.appendChild(el("h2", { text: "Session report" }));
+    const test = s.session.mode === "test";
+    box.appendChild(el("h2", { text: test ? "Practice test results" : "Session report" }));
     if (reason) box.appendChild(el("div", { class: "callout", text: reason }));
     if (!s.answered) {
       box.appendChild(el("p", { class: "muted", text: "No questions were answered in this session." }));
@@ -92,14 +97,44 @@
         box.insertAdjacentHTML("beforeend", h + "</table>");
       }
     }
+    if (s.review && s.review.length) box.appendChild(reviewList(s.review));
     const row = el("div", { class: "btn-row", style: "margin-top:20px" });
-    row.appendChild(el("button", { class: "btn primary", text: "Start another session", onclick: function () { if (self.opts.onRestart) self.opts.onRestart(); } }));
+    row.appendChild(el("button", { class: "btn primary", text: test ? "Take another test" : "Start another session", onclick: function () { if (self.opts.onRestart) self.opts.onRestart(); } }));
     row.appendChild(el("a", { class: "btn", href: "/review", text: "Review mistakes" }));
     row.appendChild(el("a", { class: "btn ghost", href: "/progress", text: "Progress" }));
     box.appendChild(row);
     this.root.appendChild(box);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  /** Practice test: every question with your answer, the correct answer and the explanation. */
+  function reviewList(items) {
+    const wrap = el("div", { class: "test-review" });
+    const right = items.filter(function (q) { return q.correct; }).length;
+    wrap.appendChild(el("h3", { style: "margin-top:22px", text: "Question review · " + right + " / " + items.length + " correct" }));
+    items.forEach(function (q, i) {
+      const d = el("details", { class: "mistake test-q " + (q.correct ? "ok" : "bad") });
+      if (!q.correct) d.setAttribute("open", "open");
+      const mark = q.correct ? '<span class="ok-mark">✓</span>' : (q.answered ? '<span class="bad-mark">✗</span>' : '<span class="warn-mark">–</span>');
+      d.innerHTML = "<summary>" + mark + " <b>" + (i + 1) + ". " + esc(q.title) + '</b> <span class="muted">' + esc(q.track + " · " + q.topic_label) + "</span>" +
+        (q.answered ? "" : ' <span class="badge">skipped</span>') + "</summary>";
+      const body = el("div", { class: "body" });
+      body.appendChild(block("Your answer", q.answered ? q.your_answer || "(empty)" : "(not answered)"));
+      body.appendChild(block("Correct answer", q.correct_answer));
+      if (q.explanation) body.appendChild(block("Explanation", q.explanation));
+      body.appendChild(el("a", { class: "btn small", href: "/exercise/" + encodeURIComponent(q.exercise_id) + "?ctx=free", text: "Try it again with feedback →" }));
+      d.appendChild(body);
+      wrap.appendChild(d);
+    });
+    return wrap;
+  }
+
+  function block(label, text) {
+    const b = el("div", { class: "test-block" });
+    b.appendChild(el("div", { class: "plabel", text: label }));
+    b.appendChild(el("pre", { class: "plain", text: text }));
+    return b;
+  }
 
   function stat(v, l) { return '<div class="stat"><span class="v">' + esc(v) + '</span><span class="l">' + esc(l) + "</span></div>"; }
 
