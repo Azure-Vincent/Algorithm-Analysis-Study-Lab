@@ -16,12 +16,26 @@ Supported convention (plus many common variants):
         if cond / else if / else    "end if", "end for", "}" lines are ignored
         return value
         x++, x += 2, increment x
-        swap(A[i], A[j])            also "swap A[i] and A[j]"
+        swap(A[i], A[j])            also "swap A[i] and A[j]", "interchange A[i] and A[j]"
         append(L, x)                also "append x to L"
         print x
     Operators: and or not mod div, =/== in conditions, ≠ ≤ ≥ <> ^ (power)
     Functions: length(A) / A.length, floor, ceil, sqrt, abs, min, max
     Arrays are 0-indexed and bounds-checked; new array[n] creates zeros.
+
+Course (Rosen-style) convention, also supported:
+
+    procedure linear search(x: integer, a1, a2, ..., an: distinct integers)
+        i := 1                      a1..an is ONE 1-indexed sequence a; n = its length
+        while (i ≤ n and x ≠ ai)    ai, a_i, a_{i+1}, a[i] all index the sequence
+            i := i + 1
+        if i ≤ n then location := i     one-line "if ... then stmt" / "else stmt"
+        else location := 0
+        return location
+    procedure SelectionSort(array A, length(A) = n)     n is bound to length(A), not passed
+    for i in 2 to sqrt(n)           "in" works like ":=" in a counting loop
+    {text in braces}                is a comment
+    A final "return" written at the procedure's own indentation still belongs to it.
 
 Blocks are defined by indentation.
 """
@@ -48,18 +62,23 @@ class PseudoError(Exception):
 # --------------------------------------------------------------------------
 # Runtime helpers
 # --------------------------------------------------------------------------
+def _int_index(i):
+    if isinstance(i, bool):
+        raise PseudoError("an array index must be a number, not true/false")
+    if isinstance(i, float):
+        if math.isnan(i) or math.isinf(i):
+            raise PseudoError("an array index must be a finite number")
+        i = math.floor(i)
+    if not isinstance(i, int):
+        raise PseudoError(f"an array index must be an integer, got {fmt(i)}")
+    return i
+
+
 class PList(list):
     """0-indexed list that refuses negative / out-of-range indices."""
 
     def _idx(self, i):
-        if isinstance(i, bool):
-            raise PseudoError("an array index must be a number, not true/false")
-        if isinstance(i, float):
-            if math.isnan(i) or math.isinf(i):
-                raise PseudoError("an array index must be a finite number")
-            i = math.floor(i)
-        if not isinstance(i, int):
-            raise PseudoError(f"an array index must be an integer, got {fmt(i)}")
+        i = _int_index(i)
         if i < 0 or i >= len(self):
             if len(self) == 0:
                 raise PseudoError(f"index {i} is out of bounds (the array is empty)")
@@ -78,6 +97,30 @@ class PList(list):
 
     def __add__(self, other):
         return PList(list(self) + list(other))
+
+
+class OneList(PList):
+    """A sequence a1, a2, ..., an from the course convention: indices run 1..n."""
+
+    def _idx(self, i):
+        i = _int_index(i)
+        if i < 1 or i > len(self):
+            if len(self) == 0:
+                raise PseudoError(f"index {i} is out of bounds (the sequence is empty)")
+            raise PseudoError(f"index {i} is out of bounds (a1..an has indices 1..{len(self)})")
+        return i - 1
+
+
+def _one(v):
+    """Turn the list passed for a 'a1, a2, ..., an' parameter into a 1-indexed sequence (in place)."""
+    if isinstance(v, OneList):
+        return v
+    if isinstance(v, PList):
+        v.__class__ = OneList        # same object, so in-place changes stay visible to the caller
+        return v
+    if isinstance(v, list):
+        return OneList(v)
+    raise PseudoError("a1, a2, ..., an must be given a list of values")
 
 
 def to_plist(v):
@@ -190,7 +233,7 @@ SAFE_ENV = {
     "log2": math.log2, "log": math.log, "log10": math.log10,
     "sum": sum, "sorted": lambda a: PList(sorted(a)),
     "True": True, "False": False, "None": None,
-    "_rng": _rng, "_array": _array, "_L": _L, "_append": _append,
+    "_rng": _rng, "_array": _array, "_L": _L, "_append": _append, "_one": _one,
     "_INF": math.inf, "_fmt": fmt,
 }
 
@@ -279,7 +322,8 @@ END_RE = re.compile(
 
 
 def _strip_line(raw: str) -> str:
-    s = re.sub(r"//.*$", "", raw)
+    s = re.sub(r"(?<![\w])\{[^{}]*\}", "", raw)    # {comment} - but not the subscript in a_{i+1}
+    s = re.sub(r"//.*$", "", s)
     s = re.sub(r"(^|\s)#.*$", "", s)
     s = re.sub(r"▷.*$", "", s)
     s = s.rstrip()
@@ -296,25 +340,80 @@ def _strip_suffix(stmt: str) -> str:
     return s
 
 
-def translate_stmt(stmt: str, line: int):
-    """Return (python_text, opens_block, kind)."""
-    s = _strip_suffix(stmt.strip())
-    low = s.lower()
+class _Ctx(threading.local):
+    seq = ()      # names of the 1-indexed sequence parameters of the procedure being translated
 
-    m = re.match(r"^(?:procedure|function|algorithm|def|proc|func|method|subroutine)\s+([A-Za-z_]\w*)\s*(?:\((.*?)\))?\s*(?:(?:->|returns?\b|:).*)?$", s, re.I)
+
+_ctx = _Ctx()
+
+DEF_RE = re.compile(r"^(?:procedure|function|algorithm|def|proc|func|method|subroutine)\s+"
+                    r"([A-Za-z_]\w*(?:\s+[A-Za-z_]\w*)*?)\s*(?:\((.*)\))?\s*(?:(?:->|returns?\b|:).*)?$", re.I)
+ELLIPSES = ("...", "…", ". . .", "..")
+TYPE_WORDS = ("int", "array", "integer", "list", "real", "float", "string", "bool", "boolean", "sequence")
+
+
+def _params(text, line):
+    """Parse a parameter list. Returns (params, prologue lines run at the start of the body, sequence names)."""
+    toks = [re.sub(r":.*$", "", t).strip() for t in _split_top(text)] if text and text.strip() else []
+    params, prologue, seqs = [], [], []
+    i = 0
+    while i < len(toks):
+        tok = toks[i]
+        m = re.fullmatch(r"([A-Za-z]+?)_?\{?1\}?", tok)
+        if m:
+            base, j = m.group(1), i + 1
+            while j < len(toks) and re.fullmatch(re.escape(base) + r"_?\{?\d+\}?", toks[j]):
+                j += 1
+            end = re.fullmatch(re.escape(base) + r"_?\{?([A-Za-z])\}?", toks[j + 1]) if j + 1 < len(toks) and toks[j] in ELLIPSES else None
+            if end:      # a1, a2, ..., an  ->  one 1-indexed sequence `a`, with n = its length
+                params.append(base)
+                seqs.append((base, end.group(1)))
+                i = j + 2
+                continue
+        m = (re.fullmatch(r"(?:length|len|size)\s*\(\s*([A-Za-z_]\w*)\s*\)\s*=\s*([A-Za-z_]\w*)", tok, re.I)
+             or re.fullmatch(r"([A-Za-z_]\w*)\s*=\s*(?:length|len|size)\s*\(\s*([A-Za-z_]\w*)\s*\)", tok, re.I))
+        if m:        # length(A) = n  ->  n is derived from A, not passed
+            arr, var = (m.group(1), m.group(2)) if tok.lower().startswith(("length", "len", "size")) else (m.group(2), m.group(1))
+            prologue.append(f"{var} = len({arr})")
+            i += 1
+            continue
+        ids = re.findall(r"[A-Za-z_]\w*", tok)
+        if not ids:
+            raise PseudoError(f"can't read parameter '{tok}'", line)
+        params.append(ids[-1] if len(ids) > 1 and ids[0].lower() in TYPE_WORDS else ids[0])
+        i += 1
+    seq_lines = []
+    for base, nvar in seqs:
+        seq_lines.append(f"{base} = _one({base})")
+        if nvar not in params and nvar != base:
+            seq_lines.append(f"{nvar} = len({base})")
+    return params, seq_lines + prologue, tuple(b for b, _ in seqs)
+
+
+def _subscripts(s):
+    """a_i, a_{i+1}, ai, a1, an  ->  a[...] for the current procedure's sequence parameters."""
+    for base in _ctx.seq:
+        b = re.escape(base)
+        s = re.sub(r"\b" + b + r"_\{([^{}]*)\}", base + r"[\1]", s)
+        s = re.sub(r"\b" + b + r"_(\w+)\b", base + r"[\1]", s)
+        s = re.sub(r"\b" + b + r"([ijklmn]|\d+)\b", base + r"[\1]", s)
+    return s
+
+
+def translate_stmt(stmt: str, line: int):
+    """Return (python_text, opens_block, kind). A procedure header may carry extra body lines after a newline."""
+    s = _strip_suffix(stmt.strip())
+
+    m = DEF_RE.match(s)
     if m:
-        params = []
-        if m.group(2) and m.group(2).strip():
-            for part in m.group(2).split(","):
-                part = part.strip()
-                part = re.sub(r":.*$", "", part).strip()          # strip ": type"
-                ids = re.findall(r"[A-Za-z_]\w*", part)
-                if not ids:
-                    raise PseudoError(f"can't read parameter '{part}'", line)
-                params.append(ids[-1] if len(ids) > 1 and ids[0].lower() in ("int", "array", "integer", "list", "real", "float", "string", "bool", "boolean") else ids[0])
-        if FORBIDDEN.search(m.group(1)):
+        name = re.sub(r"\s+", "_", m.group(1))           # "linear search" -> linear_search
+        if FORBIDDEN.search(name):
             raise PseudoError("invalid procedure name", line)
-        return f"def {m.group(1)}({', '.join(params)}):", True, "def"
+        params, prologue, _ctx.seq = _params(m.group(2), line)
+        return "\n".join([f"def {name}({', '.join(params)}):"] + prologue), True, "def"
+
+    s = _subscripts(s)
+    low = s.lower()
 
     m = re.match(r"^(?:else\s*if|elseif|elsif|elif|else,\s*if)\s+(.+)$", s, re.I)
     if m:
@@ -325,7 +424,7 @@ def translate_stmt(stmt: str, line: int):
     if m:
         return f"if {conv_expr(m.group(1), line)}:", True, "if"
 
-    m = re.match(r"^for\s+([A-Za-z_]\w*)\s*(?:=|←|<-|:=|\bfrom\b)\s*(.+?)\s+(to|downto|down\s+to)\s+(.+?)(?:\s+(?:step|by)\s+(.+))?$", s, re.I)
+    m = re.match(r"^for\s+([A-Za-z_]\w*)\s*(?:=|←|<-|:=|\bfrom\b|\bin\b)\s*(.+?)\s+(to|downto|down\s+to)\s+(.+?)(?:\s+(?:step|by)\s+(.+))?$", s, re.I)
     if m:
         var, a, direction, b, step = m.groups()
         down = direction.lower().replace(" ", "") == "downto"
@@ -360,7 +459,7 @@ def translate_stmt(stmt: str, line: int):
         arg = m.group(1).strip()
         return f"_print({conv_expr(arg, line)})", False, "print"
 
-    m = re.match(r"^(?:swap|exchange)\s*\(?\s*(" + LHS + r")\s*(?:,|\band\b|\bwith\b)\s*(" + LHS + r")\s*\)?$", s, re.I)
+    m = re.match(r"^(?:swap|exchange|interchange)\s*\(?\s*(" + LHS + r")\s*(?:,|\band\b|\bwith\b)\s*(" + LHS + r")\s*\)?$", s, re.I)
     if m:
         a, b = conv_lhs(m.group(1), line), conv_lhs(m.group(2), line)
         return f"{a}, {b} = {b}, {a}", False, "assign"
@@ -423,6 +522,39 @@ def _split_top(s):
     return [p.strip() for p in parts]
 
 
+INLINE_RE = re.compile(r"^((?:else\s*if|elseif|elsif|elif|if|while|for)\s+.+?)\s+(?:then|do)\s+(\S.*)$", re.I)
+INLINE_ELSE_RE = re.compile(r"^(else|otherwise)\s+(?!if\b)(\S.*)$", re.I)
+
+
+def _split_inline(text, depth=0):
+    """'if c then stmt' / 'else stmt' on one line -> [(extra_indent, header), (extra_indent + 1, stmt)]."""
+    m = INLINE_RE.match(text) or INLINE_ELSE_RE.match(text)
+    if not m or DEF_RE.match(text):
+        return [(depth, text)]
+    return [(depth, m.group(1))] + _split_inline(m.group(2), depth + 1)
+
+
+def _attach_to_procedures(stmts):
+    """Course slides put the body of a procedure at the header's own indentation (Rosen), or write only
+    the final 'return' there. Either way those lines belong to the procedure, so indent them under it."""
+    def_indent = body_indent = None
+    flush = False
+    out = []
+    for ln, ind, text in stmts:
+        if DEF_RE.match(_strip_suffix(text)):
+            def_indent, body_indent, flush = ind, None, False
+        elif def_indent is not None:
+            if body_indent is None:
+                body_indent = ind
+                flush = ind <= def_indent
+            if flush:
+                ind += 4
+            elif ind <= def_indent and re.match(r"^return\b", text, re.I):
+                ind = body_indent
+        out.append((ln, ind, text))
+    return out
+
+
 class Transpiled:
     def __init__(self, py, line_map, defs):
         self.py = py
@@ -438,6 +570,7 @@ def transpile(src: str, params=None, snap_header=None, snap_after=None) -> Trans
     snap_header: original line number of a loop header; a _snap() call is
             inserted at the end of that loop's body (one snapshot per iteration).
     """
+    _ctx.seq = ()
     raw_lines = src.replace("\t", "    ").split("\n")
     stmts = []  # (orig_line, indent_width, text)
     for i, raw in enumerate(raw_lines, start=1):
@@ -456,6 +589,8 @@ def transpile(src: str, params=None, snap_header=None, snap_after=None) -> Trans
 
     if not stmts:
         raise PseudoError("the code is empty")
+    stmts = [(ln, ind + extra, part) for ln, ind, text in _attach_to_procedures(stmts)
+             for extra, part in _split_inline(text)]
 
     out_lines = []
     line_map = {}
@@ -502,15 +637,16 @@ def transpile(src: str, params=None, snap_header=None, snap_after=None) -> Trans
             if ind != stack[-1]:
                 raise PseudoError("indentation doesn't line up with any earlier line", ln)
         level = len(stack) - 1
-        emit(level, py, ln)
+        first, *prologue = py.split("\n")
+        emit(level, first, ln)
+        for extra in prologue:          # procedure header: sequence / length bindings
+            emit(level + 1, extra, ln)
         if snap_header is not None and ln == snap_header:
             if not opens:
                 raise PseudoError("snapshot line is not a loop header", ln)
             pending_snap = True
             snap_level = level + 1
-        if snap_after is not None and ln == snap_after:
-            if opens:
-                raise PseudoError("snapshot line must be a simple statement", ln)
+        if snap_after is not None and ln == snap_after and not opens:   # "if c then x := 1": after the x := 1 part
             emit(level, "_snap()", ln)
         if kind == "def":
             defs.append(re.match(r"def (\w+)", py).group(1))

@@ -169,6 +169,9 @@ def matches_topic(ex_row, topic):
 
 def matches_filters(ex_row, config):
     """Optional narrowing used when a session is started from a track page."""
+    style = config.get("style")
+    if style and ("course_style" in ex_row["tags"]) != (style == "course"):
+        return False
     return all(config.get(key) in (None, "") or ex_row[col] == config[key]
                for key, col in (("track", "track"), ("subtopic", "topic"), ("type", "type"), ("level", "level")))
 

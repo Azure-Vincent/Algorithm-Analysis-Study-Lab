@@ -4,7 +4,7 @@ import copy
 from engine.catalog import difficulty_of
 from engine.pseudo import run_trace
 
-from data import complexity_a, complexity_b, complexity_c, pseudocode_bank, trace_debug_bank
+from data import complexity_a, complexity_b, complexity_c, course_style_bank, pseudocode_bank, trace_debug_bank
 
 COLORS = 4
 
@@ -33,7 +33,8 @@ def resolve_highlights(code, hl):
 def raw_exercises():
     """Exercises as authored (including private test helpers like _sim)."""
     return (complexity_a.EXERCISES + complexity_b.EXERCISES + complexity_c.EXERCISES
-            + pseudocode_bank.EXERCISES + trace_debug_bank.TRACES + trace_debug_bank.DEBUGS)
+            + pseudocode_bank.EXERCISES + trace_debug_bank.TRACES + trace_debug_bank.DEBUGS
+            + course_style_bank.EXERCISES)
 
 
 def finalize(ex, by_id):

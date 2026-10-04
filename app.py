@@ -399,6 +399,8 @@ def create_app(db_path=None, env=None):
                 cfg["type"] = body["type"]
             if body.get("level") not in (None, ""):
                 cfg["level"] = _int(body.get("level"), 1, 1, 9)
+            if body.get("style") in ("course", "general"):
+                cfg["style"] = body["style"]
         sid = uuid.uuid4().hex
         db.create_session(sid, mode, cfg)
         pool = stats.build_pool(cfg)

@@ -191,6 +191,57 @@ class TestPseudocode(unittest.TestCase):
             self.assertEqual(r["passed"], 0)
 
 
+class TestCourseConvention(unittest.TestCase):
+    """The course slides' pseudocode runs as written (Rosen-style headers, :=, 1-indexed a1..an)."""
+    SLIDES = {
+        "max": ("procedure max (a1, a2, …, an: integers)\nmax := a1\nfor i := 2 to n {each time i ≤ n is done to exit the loop}\n"
+                "    if max < ai then max := ai\nreturn max", "max", ["a"], [([3, 9, 2], 9), ([5], 5), ([-1, -7], -1)]),
+        "linear": ("procedure linear search (x: integer, a1, a2, …,an: distinct integers)\ni := 1\nwhile (i ≤ n and x ≠ ai)\n"
+                   "    i := i + 1\nif i ≤ n then location := i\nelse location := 0\nreturn location",
+                   "LinearSearch", ["x", "a"], [(7, [4, 7, 1], 2), (9, [4, 7, 1], 0)]),
+        "isPrime": ("Procedure isPrime(n)\n    if n <= 1\n        return false\n    else if n <= 3\n        return true\n    else\n"
+                    "        for i in 2 to sqrt(n)\n            if n % i == 0\n                return false\nreturn true",
+                    "isPrime", ["n"], [(1, False), (3, True), (9, False), (13, True)]),
+        "selection": ("procedure SelectionSort(array A, length(A) = n)\n    for i in 0 to n - 2\n        maxIndex = i\n"
+                      "        for j in (i + 1) to (n - 1)\n            if A[j] > A[maxIndex]\n                maxIndex = j\n"
+                      "        swap(A[i], A[maxIndex])", "SelectionSort", ["A"], [([3, 1, 2], [3, 2, 1])]),
+    }
+
+    def test_slides_run_verbatim(self):
+        for name, (src, entry, params, cases) in self.SLIDES.items():
+            with self.subTest(name):
+                tests = [{"args": list(c[:-1]), "expect": c[-1], "check": "either"} for c in cases]
+                r = run_tests(src, tests, entry, params)
+                self.assertTrue(r["runnable"], r.get("error"))
+                self.assertEqual(r["passed"], r["total"], r["results"])
+
+    def test_sequence_is_one_indexed(self):
+        src = "procedure f(a1, a2, …, an: integers)\nreturn a_{n} + a_1 * 10"
+        self.assertEqual(run_tests(src, [{"args": [[4, 5, 6]], "expect": 46}], "f", ["a"])["passed"], 1)
+        r = run_tests("procedure f(a1, …, an: integers)\nreturn a_0", [{"args": [[1, 2]], "expect": 1}], "f", ["a"])
+        self.assertIn("1..2", r["results"][0]["error"])
+        # in-place changes to the sequence are visible to the caller (sorting procedures)
+        r = run_tests("procedure f(a1, …, an: integers)\ninterchange a_1 and a_n",
+                      [{"args": [[1, 2, 3]], "expect": [3, 2, 1], "check": "arg0"}], "f", ["a"])
+        self.assertEqual(r["passed"], 1)
+
+    def test_inline_if_trace_and_braces(self):
+        src = "procedure f(a1, …, an: integers)\nc := 0\nfor i := 1 to n\n    if a_i > 0 then c := c + 1 {count positives}\nreturn c"
+        res = run_trace(src, {"a": [3, -1, 5]}, None, ["i", "c"], snap_after=4)
+        self.assertEqual([(r["i"], r["c"]) for r in res["rows"]], [(1, 1), (3, 2)])
+        self.assertEqual(res["result"], 2)
+
+    def test_general_style_unchanged(self):
+        r = run_tests("procedure F(A)\n    if A[0] > 1 then\n        return A[0]\n    return 0", [{"args": [[5]], "expect": 5}], "F", ["A"])
+        self.assertEqual(r["passed"], 1)
+
+    def test_course_bank_tagged_and_filterable(self):
+        course = [e for e in SEED if "course_style" in e["tags"]]
+        self.assertGreaterEqual(len(course), 30)
+        self.assertTrue({"fill", "order", "complete", "write", "debug", "trace", "to_complexity", "identify"}
+                        <= {e["type"] for e in course})
+
+
 class TestGenerator(unittest.TestCase):
     FAMS = ["single", "sequential", "nested", "multivar", "dependent", "conditional", "mixed"]
 
@@ -401,6 +452,13 @@ class TestApp(unittest.TestCase):
         self.assertTrue(self.post(f"/api/session/{s['id']}/next")["done"])
         s = self.post("/api/session", {"mode": "practice", "count": 3, "track": "bogus", "subtopic": "tn_log"})
         self.assertNotIn("subtopic", s["config"])
+        # Style filter: course-convention exercises only, or none of them
+        for style in ("course", "general"):
+            s = self.post("/api/session", {"mode": "practice", "count": 8, "track": "pseudocode", "style": style})
+            self.assertGreater(s["pool_size"], 0)
+            for _ in range(8):
+                ex = BY_ID[self.post(f"/api/session/{s['id']}/next")["exercise_id"]]
+                self.assertEqual("course_style" in ex["tags"], style == "course")
 
     def test_07_generator_api(self):
         r = self.post("/api/generate", {"family": "nested", "seed": 7})

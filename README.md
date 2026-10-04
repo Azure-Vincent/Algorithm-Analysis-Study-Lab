@@ -65,7 +65,7 @@ the pseudocode sandbox, checks it only listens on 127.0.0.1, restarts it and con
 
 ### Tests
 ```bash
-python -m unittest discover -s tests -v      # 77 tests: content, parser security, grading, API, stats, persistence
+python -m unittest discover -s tests -v      # 82 tests: content, parser security, grading, API, stats, persistence
 pip install playwright                         # optional: browser walkthrough (needs Chromium)
 python tests/e2e_browser.py                    # starts its own server on a temporary database
 E2E_EXE=dist/AlgorithmStudy python tests/e2e_browser.py   # same walkthrough against a built executable
@@ -81,6 +81,7 @@ correction → session report → statistics → Review Mistakes retry → serve
 | Complexity Practice | 108 exercises across 6 levels. Modes: identify, O/Θ/Ω bounds, analyze, count operations, compare algorithms, best/average/worst case |
 | **T(n) Analysis** | 67 exercises across 9 levels (constant → single loops → sequential → nested → dependent/summations → logarithmic → n, m, k → best/worst case → common algorithms). Operation-table, direct and guided modes; T(n) and Θ graded separately; reference page |
 | Pseudocode Lab | 52 exercises (fill in, order, complete, write, pseudocode → complexity) plus 16 tracing and 17 debugging exercises |
+| Course convention | 36 more exercises (30 pseudocode + 6 complexity) written like the course slides: `procedure max(a1, a2, …, an: integers)`, `:=`, 1-indexed `a_i`, one-line `if … then`, `{comments}`. Filter with **Style → Course convention**; the interpreter runs the slides' code as written |
 | Practice sessions | Start in place on any track page from the topic, mode and level you picked, or use the optional Practice tab for mixed sessions. 5 / 10 / 20 / unlimited questions. Report with accuracy, hints, attempts, difficult topics |
 | Adaptive practice | Weights topics, including T(n) topics, by smoothed first-try accuracy |
 | Review Mistakes | Every miss with your answer, the correct answer, the explanation, attempts, hints and history; T(n) misses also store the mistake category. 3 clean retries → mastered |

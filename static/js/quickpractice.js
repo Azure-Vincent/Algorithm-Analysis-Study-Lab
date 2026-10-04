@@ -51,6 +51,7 @@
     if (f.type) cfg.type = f.type;
     if (f.level) cfg.level = +f.level;
     if (f.difficulty) cfg.difficulty = f.difficulty;
+    if (f.style) cfg.style = f.style;
     this.opts.browse.classList.add("hidden");
     (this.opts.alsoHide || []).forEach(function (e) { e.classList.add("hidden"); });
     this.opts.session.innerHTML = "";

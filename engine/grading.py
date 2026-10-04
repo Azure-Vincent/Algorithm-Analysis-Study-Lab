@@ -82,7 +82,7 @@ def assemble_complete(template, body):
 # ============================================================================ helpers
 def norm_blank(s):
     s = (s or "").strip().lower()
-    for a, b in (("≤", "<="), ("≥", ">="), ("≠", "!="), ("←", "="), ("−", "-")):
+    for a, b in (("≤", "<="), ("≥", ">="), ("≠", "!="), ("<>", "!="), (":=", "="), ("←", "="), ("−", "-")):
         s = s.replace(a, b)
     s = re.sub(r"\s+", "", s)
     while s.startswith("(") and s.endswith(")") and _balanced(s[1:-1]):

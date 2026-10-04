@@ -31,6 +31,24 @@
   <div class="mode-card" data-type="{{ key }}"><b>{{ label }}</b><span>{{ DESC.get(key, '') }}</span></div>
   {% endfor %}
 </div>
+{% if track == 'pseudocode' %}
+<details class="method" style="margin:-6px 0 14px"><summary>The course pseudocode convention (Style → Course convention)</summary>
+<pre class="plain">procedure linear search(x: integer, a1, a2, …, an: distinct integers)
+i := 1
+while (i ≤ n and x ≠ a_i)
+    i := i + 1
+if i ≤ n then location := i
+else location := 0
+return location</pre>
+<ul class="muted" style="font-size:.9rem;margin:6px 0 0">
+  <li><b>a1, a2, …, an</b> in the header is one sequence, indexed from <b>1</b>; <b>n</b> is its length. Write a term as <code>a_i</code>, <code>a_{j+1}</code>, <code>ai</code> or <code>a[i]</code>.</li>
+  <li><code>:=</code> assigns, <code>=</code> compares; <code>≤ ≥ ≠</code> work (or <code>&lt;= &gt;= !=</code>).</li>
+  <li>One-line <code>if … then …</code> / <code>else …</code>; <code>for i := 1 to n</code> or <code>for i in 2 to sqrt(n)</code>; <code>interchange a_j and a_{j+1}</code>.</li>
+  <li><code>{text in braces}</code> is a comment. The body may sit at the same indentation as <code>procedure</code>, as on the slides.</li>
+  <li>“Not found” is position <b>0</b> in this convention, because positions start at 1.</li>
+</ul>
+</details>
+{% endif %}
 {% if track == 'complexity' %}
 <p class="muted" style="margin-top:-8px">Mode E also has an interactive calculator on the <a href="/compare">Compare page</a>.</p>
 {% endif %}
@@ -41,6 +59,9 @@
   </label>
   <label class="field">Topic
     <select id="f-topic"><option value="">All topics</option>{% for k, v in topics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  </label>
+  <label class="field">Style
+    <select id="f-style"><option value="">Any style</option><option value="course">Course convention (:=, a₁…aₙ)</option><option value="general">General pseudocode</option></select>
   </label>
   <label class="field">Status
     <select id="f-status"><option value="">Any status</option><option value="unseen">Not tried</option><option value="solved">Solved</option><option value="missed">Missed</option><option value="improving">Improving</option><option value="mastered">Mastered</option></select>
@@ -72,8 +93,10 @@
     track: track, title: TRACK_NAME, bar: $("qp"), browse: $("browse"), session: $("session"),
     filters: () => {
       const modeCard = document.querySelector("#modes .mode-card.active");
-      const parts = [optText("f-topic"), type ? modeCard.querySelector("b").textContent : "", optText("f-level")].filter(Boolean);
-      return { subtopic: $("f-topic").value, type: type, level: $("f-level").value,
+      const style = $("f-style").value;
+      const parts = [optText("f-topic"), type ? modeCard.querySelector("b").textContent : "", optText("f-level"),
+                     style === "course" ? "course convention" : (style ? "general style" : "")].filter(Boolean);
+      return { subtopic: $("f-topic").value, type: type, level: $("f-level").value, style: style,
                label: parts.length ? parts.join(" · ") : "all of " + TRACK_NAME };
     },
     onReturn: refresh,
@@ -82,15 +105,18 @@
     document.querySelectorAll("#modes .mode-card").forEach((x) => x.classList.remove("active"));
     c.classList.add("active"); type = c.dataset.type; draw();
   }));
-  ["f-level", "f-topic", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
+  ["f-level", "f-topic", "f-style", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
   const params = new URLSearchParams(location.search);
   if (params.get("type")) { type = params.get("type"); document.querySelectorAll("#modes .mode-card").forEach((c) => c.classList.toggle("active", c.dataset.type === type)); }
   if (params.get("level")) $("f-level").value = params.get("level");
   if (params.get("topic")) $("f-topic").value = params.get("topic");
+  if (params.get("style")) $("f-style").value = params.get("style");
 
+  const isCourse = (r) => (r.tags || []).indexOf("course_style") >= 0;
   function draw() {
-    const lv = $("f-level").value, tp = $("f-topic").value, st = $("f-status").value;
-    const practiceable = all.filter((r) => (!type || r.type === type) && (!lv || String(r.level) === lv) && (!tp || r.topic === tp));
+    const lv = $("f-level").value, tp = $("f-topic").value, st = $("f-status").value, sty = $("f-style").value;
+    const practiceable = all.filter((r) => (!type || r.type === type) && (!lv || String(r.level) === lv) && (!tp || r.topic === tp) &&
+      (!sty || isCourse(r) === (sty === "course")));
     qp.update(practiceable.length);
     const rows = practiceable.filter((r) => !st || r.status === st);
     $("count").textContent = rows.length + " exercise" + (rows.length === 1 ? "" : "s");
@@ -104,7 +130,8 @@
       const a = BT.el("a", { class: "ex-item", href: "/exercise/" + encodeURIComponent(r.id) + "?ctx=free" });
       a.innerHTML = '<span class="status-dot ' + r.status + '" title="' + BT.statusLabel(r.status) + '"></span>' +
         '<span><span class="title">' + BT.esc(r.title) + '</span><br><span class="muted" style="font-size:.85rem">' + BT.esc(r.topic_label) + "</span></span>" +
-        '<span class="meta"><span class="badge">' + BT.esc(r.type_label) + '</span><span class="badge">' + BT.esc(r.difficulty) + "</span></span>";
+        '<span class="meta">' + (isCourse(r) ? '<span class="badge blue" title="Written in the course pseudocode convention">course style</span>' : "") +
+        '<span class="badge">' + BT.esc(r.type_label) + '</span><span class="badge">' + BT.esc(r.difficulty) + "</span></span>";
       a.addEventListener("click", () => sessionStorage.setItem("bt_list", JSON.stringify(ids)));
       list.appendChild(a);
     });
