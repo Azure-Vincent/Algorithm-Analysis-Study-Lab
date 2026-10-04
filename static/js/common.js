@@ -27,10 +27,14 @@
   const KW = new Set(("procedure function algorithm if else elseif for to downto step while return and or not mod div " +
     "each in then do end repeat until break continue call set by of new").split(" "));
   const LIT = new Set("true false null nil infinity".split(" "));
-  const FN = new Set("length floor ceil sqrt abs min max swap print append push pop top len size log".split(" "));
-  const TOKEN_RE = /(\/\/.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)|([\s\S])/gm;
+  const FN = new Set("length floor ceil sqrt abs min max swap interchange print append push pop top len size log".split(" "));
+  // comments: // ... or {text in braces} (course convention; not the subscript braces of a_{j+1})
+  // identifiers: a_{j+1} and a_i are shown with subscripts
+  const TOKEN_RE = /(\/\/.*$|(?<!\w)\{[^{}\n]*\})|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|([A-Za-z]_\{[^{}\n]*\}|[A-Za-z]_[A-Za-z0-9](?!\w)|[A-Za-z_]\w*)|([\s\S])/gm;
+  const SUB_RE = /^([A-Za-z])_(?:\{([^{}]*)\}|([A-Za-z0-9]))$/;
 
-  function highlight(line) {
+  /** overlay: true for the editor's textarea overlay, which must keep every character the same width (no subscripts). */
+  function highlight(line, overlay) {
     let out = "";
     TOKEN_RE.lastIndex = 0;
     let m;
@@ -40,8 +44,9 @@
       else if (m[2]) out += '<span class="tok-str">' + esc(m[2]) + "</span>";
       else if (m[3]) out += '<span class="tok-num">' + esc(m[3]) + "</span>";
       else if (m[4]) {
-        const w = m[4], lw = w.toLowerCase();
-        if (KW.has(lw)) out += '<span class="tok-kw">' + esc(w) + "</span>";
+        const w = m[4], lw = w.toLowerCase(), sub = !overlay && SUB_RE.exec(w);
+        if (sub) out += esc(sub[1]) + "<sub>" + esc(sub[2] || sub[3]) + "</sub>";
+        else if (KW.has(lw)) out += '<span class="tok-kw">' + esc(w) + "</span>";
         else if (LIT.has(lw)) out += '<span class="tok-lit">' + esc(w) + "</span>";
         else if (FN.has(lw)) out += '<span class="tok-fn">' + esc(w) + "</span>";
         else out += esc(w);

@@ -36,7 +36,7 @@
     let g = "";
     for (let i = 1; i <= lines.length; i++) g += i + "\n";
     this.gutter.textContent = g;
-    this.pre.innerHTML = lines.map(function (l) { return BT.highlight(l); }).join("\n") + "\n";
+    this.pre.innerHTML = lines.map(function (l) { return BT.highlight(l, true); }).join("\n") + "\n";
     const lineH = 21.6;
     this.ta.style.minHeight = (n * lineH + 22) + "px";
     this.ta.style.height = "auto";

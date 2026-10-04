@@ -10,13 +10,15 @@
     <h1>T(n) Analysis</h1>
     <p>Go from an algorithm to its operation-count function: count operations → construct T(n) → simplify → Θ.</p>
   </div>
-  <div class="btn-row">
+  <div class="btn-row" id="quick-diff">
     <a class="btn" href="/tn/reference">T(n) reference</a>
-    <a class="btn primary" href="/practice?topic=tn&difficulty=beginner">Practice: beginner</a>
-    <a class="btn" href="/practice?topic=tn&difficulty=intermediate">Intermediate</a>
-    <a class="btn" href="/practice?topic=tn&difficulty=advanced">Advanced</a>
+    <button class="btn primary" data-difficulty="beginner">Practice: beginner</button>
+    <button class="btn" data-difficulty="intermediate">Intermediate</button>
+    <button class="btn" data-difficulty="advanced">Advanced</button>
   </div>
 </div>
+
+<div id="browse">
 
 <div class="grid grid-2">
   <div class="card pad-lg">
@@ -53,22 +55,49 @@
   <label class="field">Level
     <select id="f-level"><option value="">All levels</option>{% for k, v in TN_LEVELS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
   </label>
+  <label class="field">Topic
+    <select id="f-topic"><option value="">All topics</option>{% for k, v in TN_TOPICS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  </label>
   <label class="field">Status
     <select id="f-status"><option value="">Any status</option><option value="unseen">Not tried</option><option value="solved">Solved</option><option value="missed">Missed</option><option value="improving">Improving</option><option value="mastered">Mastered</option></select>
   </label>
   <span class="spacer"></span><span class="muted" id="count"></span>
 </div>
+<div id="qp"></div>
 <div id="list" class="ex-list"><p class="muted">Loading…</p></div>
+</div>
+<div id="session"></div>
 {% endblock %}
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/session.js') }}"></script>
+<script src="{{ url_for('static', filename='js/quickpractice.js') }}"></script>
 <script>
 (function () {
   const LEVELS = {{ TN_LEVELS|tojson }};
   const $ = (id) => document.getElementById(id);
+  const optText = (id) => { const s = $(id); return s.value ? s.options[s.selectedIndex].text : ""; };
   let all = [];
+  const qp = new QuickPractice({
+    track: "tn", title: "T(n) Analysis", bar: $("qp"), browse: $("browse"), session: $("session"), alsoHide: [$("quick-diff")],
+    filters: () => {
+      const parts = [optText("f-topic"), optText("f-level")].filter(Boolean);
+      return { subtopic: $("f-topic").value, level: $("f-level").value, label: parts.length ? parts.join(" · ") : "all of T(n) Analysis" };
+    },
+    onReturn: () => location.reload(),  // refreshes the statistics cards too
+  });
+  document.querySelectorAll("#quick-diff button[data-difficulty]").forEach((b) => b.addEventListener("click", () => {
+    const d = b.dataset.difficulty;
+    qp.start({ subtopic: "", level: "", difficulty: d, label: "T(n) Analysis · " + d });
+  }));
   function draw() {
-    const lv = $("f-level").value, st = $("f-status").value;
-    const rows = all.filter((r) => (!lv || String(r.level) === lv) && (!st || r.status === st));
+    const lv = $("f-level").value, tp = $("f-topic").value, st = $("f-status").value;
+    const practiceable = all.filter((r) => (!lv || String(r.level) === lv) && (!tp || r.topic === tp));
+    qp.update(practiceable.length);
+    const rows = practiceable.filter((r) => !st || r.status === st);
     $("count").textContent = rows.length + " exercise" + (rows.length === 1 ? "" : "s");
     const list = $("list");
     list.innerHTML = rows.length ? "" : '<div class="empty">No exercises match these filters.</div>';
@@ -84,7 +113,7 @@
       list.appendChild(a);
     });
   }
-  ["f-level", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
+  ["f-level", "f-topic", "f-status"].forEach((id) => $(id).addEventListener("change", draw));
   BT.api("/api/exercises?track=tn").then((rows) => { all = rows; draw(); }).catch((e) => { $("list").innerHTML = '<div class="callout red">' + BT.esc(e.message) + "</div>"; });
 })();
 </script>
