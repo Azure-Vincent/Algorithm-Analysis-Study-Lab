@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Complexity Proofs{% endblock %}
+{% block content %}
+<div class="learn-layout">
+  <nav class="toc" aria-label="On this page">
+    <div class="section-title" style="margin-top:0">Complexity proofs</div>
+    <a href="#why">Why prove anything?</a>
+    <a href="#bigo">Big O, formally</a>
+    <a href="#worked">A worked proof</a>
+    <a href="#every">"For every n ≥ n₀"</a>
+    <a href="#lower-order">Bounding lower-order terms</a>
+    <a href="#omega">Big Ω, formally</a>
+    <a href="#theta">Big Θ, formally</a>
+    <a href="#false">Disproving a claim</a>
+    <a href="#kinds">Intuition, definition, limit</a>
+    <a href="#ratio">The ratio method and limits</a>
+    <a href="#tn">From T(n) to a proof</a>
+    <p style="margin-top:14px"><a class="btn small primary" href="/proofs">Practice proofs →</a></p>
+    <p><a class="btn small" href="/proofs/sandbox">Proof sandbox</a></p>
+  </nav>
+
+  <div class="learn">
+    <section id="why">
+      <h2>Why prove anything?</h2>
+      <p>"log n grows much more slowly than n²" is a good <b>intuition</b>. But intuition can be wrong - small n mislead (n³ beats 2ⁿ up to n = 9), and slow growth is still growth (log n is unbounded). Big O, Ω and Θ have precise definitions, and a claim like <b>log₂ n ∈ O(n²)</b> is proven by exhibiting two numbers: a constant <b>c</b> and a starting point <b>n₀</b>.</p>
+    </section>
+
+    <section id="bigo">
+      <h2>Big O, formally</h2>
+      <div class="defn"><b>Definition.</b> For functions f(n) and g(n): f(n) ∈ O(g(n)) if there exist constants <b>c &gt; 0</b> and <b>n₀ &gt; 0</b> such that <span class="mono">0 ≤ f(n) ≤ c·g(n)</span> for every <b>n ≥ n₀</b>.</div>
+      <p>Read it as a game: you pick c and n₀ <em>first</em>, then the inequality has to survive every n from n₀ onward. c absorbs constant factors; n₀ lets you ignore a finite number of small inputs.</p>
+      <div class="callout green"><b>You do not need the smallest c or n₀.</b> Any constants that make the inequality true for every n ≥ n₀ are a complete proof. Simple, generous choices (c = 10, n₀ = 1) are usually the easiest to justify.</div>
+    </section>
+
+    <section id="worked">
+      <h2>A worked proof: log₂ n ∈ O(n²)</h2>
+      <ol class="worked">
+        <li>We need constants c &gt; 0 and n₀ &gt; 0 such that log₂ n ≤ c·n² for every n ≥ n₀.</li>
+        <li>Choose c = 1 and n₀ = 1.</li>
+        <li>For n ≥ 1: n ≤ 2ⁿ, so taking log₂ of both sides, log₂ n ≤ n.</li>
+        <li>For n ≥ 1: n ≤ n·n = n².</li>
+        <li>Therefore log₂ n ≤ n ≤ n² = 1·n² for every n ≥ 1 (and log₂ n ≥ 0 there).</li>
+        <li>So log₂ n ∈ O(n²). ∎</li>
+      </ol>
+      <p class="muted">The intuition "log n grows much more slowly than n²" told us what to expect. Steps 3-5 are what actually prove it.</p>
+    </section>
+
+    <section id="every">
+      <h2>"For every n ≥ n₀" - the most important words</h2>
+      <p>Here is a broken "proof" that n² ∈ O(n): <i>choose c = 10; then n² ≤ 10n; therefore n² ∈ O(n).</i></p>
+      <table class="data">
+        <tr><th class="num">n</th><th class="num">n²</th><th class="num">10n</th><th>n² ≤ 10n?</th></tr>
+        <tr><td class="num">5</td><td class="num">25</td><td class="num">50</td><td><span class="ok-mark">✓</span></td></tr>
+        <tr><td class="num">10</td><td class="num">100</td><td class="num">100</td><td><span class="ok-mark">✓</span></td></tr>
+        <tr><td class="num">11</td><td class="num">121</td><td class="num">110</td><td><span class="bad-mark">✗</span></td></tr>
+        <tr><td class="num">100</td><td class="num">10,000</td><td class="num">1,000</td><td><span class="bad-mark">✗</span></td></tr>
+      </table>
+      <p>n² ≤ 10n only holds up to n = 10. Big O requires the inequality for <b>all</b> n ≥ n₀, not merely on some finite range - and no bigger c helps, because n² ≤ c·n means n ≤ c, which fails as soon as n &gt; c. A constant that "works for a while" proves nothing.</p>
+    </section>
+
+    <section id="lower-order">
+      <h2>Bounding constants and lower-order terms</h2>
+      <p>To show <b>3n² + 5n + 2 ∈ O(n²)</b>, replace every lower-order term by a multiple of n² that is at least as big once n ≥ 1:</p>
+      <pre class="plain">For n ≥ 1:   5n ≤ 5n²     and     2 ≤ 2n²
+So:          3n² + 5n + 2 ≤ 3n² + 5n² + 2n² = 10n²
+Choose:      c = 10,  n₀ = 1</pre>
+      <p>The trick works because for n ≥ 1, every smaller power of n is at most n². With logs, start at n₀ = 2 so that log₂ n ≥ 1 (log₂ 1 = 0). A smaller c is possible with a larger n₀ (e.g. c = 4 from n₀ = 6) - both are valid.</p>
+    </section>
+
+    <section id="omega">
+      <h2>Big Ω, formally</h2>
+      <div class="defn"><b>Definition.</b> f(n) ∈ Ω(g(n)) if there exist constants <b>c &gt; 0</b> and <b>n₀ &gt; 0</b> such that <span class="mono">0 ≤ c·g(n) ≤ f(n)</span> for every <b>n ≥ n₀</b>.</div>
+      <p>The inequality points the other way: c·g(n) sits <em>below</em> f(n). Example: <b>n² + 3n ∈ Ω(n²)</b> - since 3n ≥ 0, we have 1·n² ≤ n² + 3n for n ≥ 1, so c = 1, n₀ = 1. For lower bounds, a <em>smaller</em> c is the safe direction (c = 2 would fail from n = 4).</p>
+    </section>
+
+    <section id="theta">
+      <h2>Big Θ, formally</h2>
+      <div class="defn"><b>Definition.</b> f(n) ∈ Θ(g(n)) if there exist constants <b>c₁ &gt; 0</b>, <b>c₂ &gt; 0</b> and <b>n₀ &gt; 0</b> such that <span class="mono">0 ≤ c₁·g(n) ≤ f(n) ≤ c₂·g(n)</span> for every <b>n ≥ n₀</b>.</div>
+      <div class="theta-diagram">
+        <div class="td-f">f(n)</div>
+        <div class="td-row"><div class="td-box lower"><b>Lower bound</b><span>Ω(n²)</span><small>c₁·n² ≤ f(n)</small></div><div class="td-box upper"><b>Upper bound</b><span>O(n²)</span><small>f(n) ≤ c₂·n²</small></div></div>
+        <div class="td-theta">both ⇒ <b>Θ(n²)</b></div>
+      </div>
+      <p>Θ requires <b>both</b> an upper and a lower bound. For <b>3n² + 5n + 2 ∈ Θ(n²)</b>: the lower bound uses 5n + 2 ≥ 0, so 3n² ≤ f(n) (c₁ = 3); the upper bound is the computation above (c₂ = 10); both hold for n ≥ 1. Proving only f(n) ≤ 10n² shows O(n²) - not Θ(n²).</p>
+    </section>
+
+    <section id="false">
+      <h2>Disproving a claim</h2>
+      <p>Not every claim is true. To show <b>n² ∉ O(n)</b>, assume constants exist and derive a contradiction:</p>
+      <pre class="plain">Suppose n² ≤ c·n for every n ≥ n₀.
+Divide by n > 0:   n ≤ c   for every n ≥ n₀.
+But n = max(n₀, c) + 1 is ≥ n₀ and > c.   Contradiction - no constants exist.</pre>
+      <p>The pattern: divide by g(n) to get <b>f(n)/g(n) ≤ c</b>, then show the ratio grows without bound, so no fixed c can stay above it. The same idea disproves 2ⁿ ∈ O(n³), n! ∈ O(2ⁿ) and n ∈ O(log n).</p>
+    </section>
+
+    <section id="kinds">
+      <h2>Three kinds of argument - keep them apart</h2>
+      <table class="data">
+        <tr><th>Kind</th><th>Example for log₂ n ∈ O(n²)</th><th>Is it a proof?</th></tr>
+        <tr><td><b>Intuitive growth comparison</b></td><td>"log n grows much more slowly than n²"; a table or graph</td><td><span class="bad-mark">No</span> - it covers finitely many n, or none</td></tr>
+        <tr><td><b>Constant-based definition proof</b></td><td>"For n ≥ 1, log₂ n ≤ n ≤ n², so c = 1, n₀ = 1."</td><td><span class="ok-mark">Yes</span> - it exhibits c and n₀ and covers every n ≥ n₀</td></tr>
+        <tr><td><b>Limit-based argument</b></td><td>"lim log₂ n / n² = 0, so log₂ n ∈ O(n²)."</td><td><span class="ok-mark">Yes</span>, via the limit theorem - a different route from the definition</td></tr>
+      </table>
+    </section>
+
+    <section id="ratio">
+      <h2>The ratio method and limits</h2>
+      <p>Look at <b>f(n)/g(n)</b> as n grows. For log₂ n / n²: 0, 0.25, 0.125, 0.047, 0.016 at n = 1, 2, 4, 8, 16 - it shrinks. That observation is still intuition. The limit makes it precise:</p>
+      <div class="formula">lim<sub>n→∞</sub> log₂(n) / n² = 0 &nbsp;⇒&nbsp; log₂(n) ∈ O(n²)</div>
+      <table class="data">
+        <tr><th>If L = lim f(n)/g(n) is …</th><th>then</th></tr>
+        <tr><td>0</td><td>f ∈ O(g), but not Ω(g) or Θ(g)</td></tr>
+        <tr><td>a positive constant</td><td>f ∈ Θ(g) - so both O(g) and Ω(g)</td></tr>
+        <tr><td>∞</td><td>f ∈ Ω(g), but not O(g) or Θ(g)</td></tr>
+      </table>
+      <p>Why it works: if f/g → L &lt; ∞, then eventually f/g &lt; L + 1, i.e. f(n) ≤ (L + 1)·g(n) for every large n - the definition with c = L + 1. (If the limit doesn't exist, the test is silent and you go back to the definition.)</p>
+    </section>
+
+    <section id="tn">
+      <h2>From T(n) to a proof</h2>
+      <pre class="plain">Pseudocode → operation counting → T(n) → asymptotic hypothesis → formal proof → O / Ω / Θ classification</pre>
+      <p>In <a href="/tn">T(n) Analysis</a> you derive an exact count such as T(n) = 3n² + 5n + 2 and read off the hypothesis Θ(n²). After solving a T(n) exercise, press <b>Prove its complexity</b>: you then prove T(n) ∈ O(n²) <em>and</em> T(n) ∈ Ω(n²) with explicit c₁, c₂ and n₀ - only then is Θ(n²) established.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

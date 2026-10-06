@@ -14,12 +14,14 @@
      ('pseudocode', {'title': 'Pseudocode Practice', 'href': '/pseudocode', 'cls': 'pc', 'bar': '',
        'topics': ['Reading', 'Completing', 'Writing from a description', 'Loops', 'Conditionals', 'Arrays', 'Searching', 'Sorting', 'Counting', 'Greedy', 'Basic recursion', 'Idea → structured pseudocode']}),
      ('tn', {'title': 'T(n) Analysis', 'href': '/tn', 'cls': 'tn', 'bar': '',
-       'topics': ['Counting operations', 'Operation tables', 'Loop checks & updates', 'Nested loops', 'Summations', 'Logarithmic loops', 'n, m, k', 'Best / worst case', 'T(n) → Θ']})] %}
+       'topics': ['Counting operations', 'Operation tables', 'Loop checks & updates', 'Nested loops', 'Summations', 'Logarithmic loops', 'n, m, k', 'Best / worst case', 'T(n) → Θ']}),
+     ('proofs', {'title': 'Complexity Proofs', 'href': '/proofs', 'cls': 'pc', 'bar': '',
+       'topics': ['Formal Big O', 'Big Ω', 'Big Θ', 'Choosing c and n₀', 'Disproving bounds', 'Proof debugging', 'Ratio & limits', 'Proof sandbox']})] %}
   {% set t = ts[key] %}
   <div class="card pad-lg track-card {{ info.cls }}">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
       <h2 style="margin:0">{{ info.title }}</h2>
-      <a href="{{ info.href }}">Pick a topic &amp; practice →</a>
+      <a href="{{ info.href }}">Practice →</a>
     </div>
     <div class="chips-inline">{% for tp in info.topics %}<span class="chip-static">{{ tp }}</span>{% endfor %}</div>
     <div class="stat-grid" style="margin-top:16px">
@@ -34,20 +36,24 @@
 
 <div class="section-title">Study</div>
 <div class="grid grid-3">
+  <a class="card" href="/learn">
+    <h3>Learn</h3>
+    <p class="muted">Big O, Θ and Ω with worked examples, T(n) analysis and the counting model, the pseudocode conventions, plus the growth-rate visualizer and algorithm comparison.</p>
+  </a>
   <a class="card" href="/complexity">
-    <h3>Complexity Practice</h3>
-    <p class="muted">Six modes: identify, O/Θ/Ω, analyze, count operations, compare, best/average/worst - across six difficulty levels.</p>
+    <h3>Practice with feedback</h3>
+    <p class="muted">Pick a subject and topic and start practicing. Wrong answers are explained right away; retry, take hints or see the solution.</p>
   </a>
-  <a class="card" href="/pseudocode">
-    <h3>Pseudocode Lab</h3>
-    <p class="muted">Fill blanks → order steps → complete → write from scratch. Plus tracing, debugging, and pseudocode → complexity.</p>
+  <a class="card" href="/practice">
+    <h3>Practice test</h3>
+    <p class="muted">A generated test of 5, 10, 20 or unlimited questions. No feedback until the end, then a full question-by-question review.</p>
   </a>
-  <a class="card" href="/tn">
-    <h3>T(n) Analysis</h3>
-    <p class="muted">Count operations row by row, build the exact T(n), simplify it, then classify it with Θ. Table, direct and guided modes.</p>
+  <a class="card" href="/mock">
+    <h3>Mock exam</h3>
+    <p class="muted">A freshly generated, course-style exam: asymptotic proofs, pseudocode analysis, algorithm design and summations, graded with partial credit.</p>
   </a>
   <a class="card" href="/adaptive">
-    <h3>Adaptive Practice</h3>
+    <h3>Adaptive practice</h3>
     <p class="muted">Questions weighted toward your weakest topics, without dropping your strong ones.</p>
     {% if weak %}<div class="card-foot">Weakest right now: {% for w in weak %}<span class="badge amber">{{ w.label }} {{ w.accuracy }}%</span>{% endfor %}</div>{% endif %}
   </a>
@@ -58,18 +64,7 @@
   </a>
   <a class="card" href="/progress">
     <h3>Progress</h3>
-    <p class="muted">Accuracy by track, topic, and exercise type; hint usage; recent sessions.</p>
+    <p class="muted">Accuracy by track, topic, and exercise type; hint usage; recent sessions and tests.</p>
   </a>
-  <a class="card" href="/learn">
-    <h3>Learn</h3>
-    <p class="muted">Reference with worked examples: O vs Θ vs Ω, dropping constants, loops, logarithms, recursion, cases.</p>
-  </a>
-</div>
-
-<div class="section-title">Tools</div>
-<div class="grid grid-3">
-  <a class="card" href="/practice"><h3>Mixed practice session</h3><p class="muted">Optional: a session that can mix tracks, filtered by difficulty and broad topic. You can also start practicing directly from any track page.</p></a>
-  <a class="card" href="/visualizer"><h3>Growth-rate visualizer</h3><p class="muted">See 1, log n, n, n log n, n², n³, 2ⁿ and n! diverge. Estimated operation counts and running times.</p></a>
-  <a class="card" href="/generator"><h3>Challenge generator</h3><p class="muted">Endless structurally varied loop problems with answers derived symbolically - never guessed.</p></a>
 </div>
 {% endblock %}

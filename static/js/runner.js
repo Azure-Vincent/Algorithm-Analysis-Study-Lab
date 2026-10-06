@@ -7,6 +7,9 @@
     return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
   }
   function wrapOpt(wrap, o) { return wrap && !/^No single/.test(o) ? wrap + "(" + o + ")" : o; }
+  // exercises answered through multiple-choice / number parts (complexity track, pseudocode → complexity, proof debugging & limits)
+  const PART_TYPES = ["to_complexity", "proof_debug", "proof_limit"];
+  function isParts(v) { return v.track === "complexity" || PART_TYPES.indexOf(v.type) >= 0; }
 
   function Runner(root, opts) {
     this.root = root;
@@ -25,6 +28,10 @@
       new TnRunner(this.root, this.opts).show(this.view);
       return;
     }
+    if (this.view.type === "proof" || this.view.type === "proof_fill") {   // structured proofs (proof.js)
+      new ProofRunner(this.root, this.opts).show(this.view);
+      return;
+    }
     this.state = { instance: BT.uuid(), hints: 0, attempts: 0, locked: false, correct: false, revealed: false,
                    stage: 0, parts: {}, line: null, order: null };
     this.render();
@@ -41,8 +48,9 @@
     if (v.mistake_status) head.insertAdjacentHTML("beforeend", BT.statusBadge(v.mistake_status === "open" ? "missed" : v.mistake_status));
     box.appendChild(head);
     const meta = el("div", { class: "ex-meta" });
+    const trackBadge = { complexity: ["blue", "Complexity"], proofs: ["green", "Proofs"] }[v.track] || ["purple", "Pseudocode"];
     meta.innerHTML =
-      '<span class="badge ' + (v.track === "complexity" ? "blue" : "purple") + '">' + (v.track === "complexity" ? "Complexity" : "Pseudocode") + "</span>" +
+      '<span class="badge ' + trackBadge[0] + '">' + trackBadge[1] + "</span>" +
       '<span class="badge">' + esc(v.type_label) + "</span>" +
       '<span class="badge">' + esc(v.topic_label) + "</span>" +
       '<span class="badge">' + esc(v.level_label || ("Level " + v.level)) + "</span>" +
@@ -50,7 +58,7 @@
     box.appendChild(meta);
 
     const method = el("details", { class: "method" });
-    method.innerHTML = "<summary>" + (v.track === "complexity" || v.type === "to_complexity" ? "The analysis method" : "The pseudocode method") +
+    method.innerHTML = "<summary>" + (v.track === "proofs" ? "The proof method" : isParts(v) ? "The analysis method" : "The pseudocode method") +
       "</summary><ol>" + v.method.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ol>";
     box.appendChild(method);
 
@@ -64,9 +72,9 @@
     this.hintBtn = el("button", { class: "btn", onclick: function () { self.hint(); } });
     this.submitBtn = el("button", { class: "btn primary", text: "Submit", onclick: function () { self.submit(); } });
     this.solBtn = el("button", { class: "btn ghost", text: "Show solution", onclick: function () { self.reveal(); } });
-    controls.appendChild(this.hintBtn);
+    if (!this.opts.test) controls.appendChild(this.hintBtn);    // practice tests: no hints or solutions until the end
     controls.appendChild(this.submitBtn);
-    controls.appendChild(this.solBtn);
+    if (!this.opts.test) controls.appendChild(this.solBtn);
     if (this.hasEditor()) {
       this.resetBtn = el("button", { class: "btn ghost", text: "Reset", onclick: function () { if (self.editor) self.editor.reset(); } });
       controls.appendChild(this.resetBtn);
@@ -83,7 +91,7 @@
     box.appendChild(this.feedback);
 
     const t = v.type;
-    if (v.track === "complexity" || t === "to_complexity") this.renderParts();
+    if (isParts(v)) this.renderParts();
     else if (t === "fill") this.renderFill();
     else if (t === "order") this.renderOrder();
     else if (t === "complete") this.renderComplete();
@@ -126,6 +134,8 @@
         body.appendChild(d);
       }
     }
+    if (v.claim) body.appendChild(el("div", { class: "formula", text: v.claim }));
+    if (v.proof_text) body.appendChild(el("pre", { class: "plain proof-text", text: v.proof_text }));
     if (v.formula) body.appendChild(el("div", { class: "formula", text: v.formula }));
     this.codeHolder = el("div");
     if (v.code) this.codeHolder.appendChild(BT.renderCode(v.code));
@@ -145,16 +155,16 @@
       self.renderPartInput(p, inputs);
       const inline = el("div", { class: "inline-result" });
       box.appendChild(inline);
-      if (v.staged && i < v.parts.length - 1) {
+      if (v.staged && !self.opts.test && i < v.parts.length - 1) {
         const chk = el("button", { class: "btn small", text: "Check this step →", style: "margin-top:10px",
           onclick: function () { self.checkStage(p, i, chk); } });
         box.appendChild(chk);
       }
-      if (v.staged && i > 0) box.classList.add("locked-part");
+      if (v.staged && !self.opts.test && i > 0) box.classList.add("locked-part");
       self.partEls[p.id] = { box: box, inputs: inputs, inline: inline };
       body.appendChild(box);
     });
-    if (v.staged) this.submitBtn.disabled = true;
+    if (v.staged && !this.opts.test) this.submitBtn.disabled = true;
   };
 
   Runner.prototype.renderPartInput = function (p, holder) {
@@ -437,7 +447,7 @@
   // ======================================================================= submit
   Runner.prototype.collect = function () {
     const v = this.view, t = v.type;
-    if (v.track === "complexity" || t === "to_complexity") return { parts: this.state.parts, scratch: this.scratch ? this.scratch.value : "" };
+    if (isParts(v)) return { parts: this.state.parts, scratch: this.scratch ? this.scratch.value : "" };
     if (t === "fill") return { blanks: this.blanks.map(function (i) { return i.value; }) };
     if (t === "order") return { order: this.orderList.items.map(function (x) { return x.id; }) };
     if (t === "complete" || t === "write") return { code: this.editor.getValue() };
@@ -531,13 +541,14 @@
   Runner.prototype.showResult = function (r) {
     const v = this.view, t = v.type, fb = this.feedback;
     fb.innerHTML = "";
+    if (r.recorded) { recorded(this); return; }
     const attempts = r.attempt_no > 1 ? " (attempt " + r.attempt_no + ")" : "";
     const hintsTxt = this.state.hints ? " · " + this.state.hints + " hint" + (this.state.hints > 1 ? "s" : "") + " used" : "";
     fb.appendChild(el("div", { class: "verdict " + (r.correct ? "ok" : "bad"),
       html: (r.correct ? "✓ Correct" : "✗ Not quite") + '<span class="sub">' + esc(attempts + hintsTxt) + (r.mistake_status && r.mistake_status !== "open" && r.correct ? " · review status: " + esc(r.mistake_status) : "") + "</span>" }));
     if (r.note) fb.appendChild(el("div", { class: "callout green", text: r.note }));
 
-    if (v.track === "complexity" || t === "to_complexity") this.feedbackParts(r);
+    if (isParts(v)) this.feedbackParts(r);
     else if (t === "fill") this.feedbackFill(r);
     else if (t === "order") this.feedbackOrder(r);
     else if (t === "complete" || t === "write") this.feedbackCode(r);
@@ -553,6 +564,13 @@
       this.submitBtn.textContent = "Submit again";
     }
   };
+
+  /** Practice test: the answer is saved, but whether it was right is only shown in the end-of-test report. */
+  function recorded(runner) {
+    runner.lock();
+    runner.feedback.innerHTML = '<div class="verdict info">Answer recorded <span class="sub">- results and explanations appear when you finish the test.</span></div>';
+    runner.finish();
+  }
 
   Runner.prototype.feedbackParts = function (r) {
     const self = this, fb = this.feedback;
@@ -676,7 +694,7 @@
       this.codeHolder.appendChild(leg);
     }
     if (sol.steps && sol.steps.length) {
-      fb.appendChild(el("div", { class: "fb-block", html: "<h4>" + (v.track === "complexity" || t === "to_complexity" ? "Step-by-step analysis" : "Explanation") + "</h4>" }));
+      fb.appendChild(el("div", { class: "fb-block", html: "<h4>" + (v.track === "proofs" ? "Worked explanation" : isParts(v) ? "Step-by-step analysis" : "Explanation") + "</h4>" }));
       fb.lastChild.appendChild(el("div", { class: "steps", text: sol.steps.join("\n") }));
     }
     if (sol.note) fb.appendChild(el("div", { class: "callout", text: sol.note }));

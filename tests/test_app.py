@@ -331,7 +331,7 @@ class TestApp(unittest.TestCase):
     def test_01_pages_and_assets(self):
         for url in ["/", "/complexity", "/pseudocode", "/practice", "/adaptive", "/review", "/progress", "/learn",
                     "/visualizer", "/compare", "/generator", "/exercise/c2-nested-two", "/exercise/pw-count-even",
-                    "/tn", "/tn/reference", "/exercise/tn2-sum"]:
+                    "/tn", "/tn/reference", "/learn/tn", "/exercise/tn2-sum"]:
             with self.subTest(url):
                 r = self.client.get(url)
                 self.assertEqual(r.status_code, 200)
@@ -459,6 +459,41 @@ class TestApp(unittest.TestCase):
             for _ in range(8):
                 ex = BY_ID[self.post(f"/api/session/{s['id']}/next")["exercise_id"]]
                 self.assertEqual("course_style" in ex["tags"], style == "course")
+
+    def test_06c_practice_test_hides_feedback(self):
+        s = self.post("/api/session", {"mode": "test", "count": 3, "topic": "mixed_complexity", "difficulty": "beginner"})
+        served = []
+        for _ in range(2):          # answer two (wrongly), skip the third
+            n = self.post(f"/api/session/{s['id']}/next")
+            served.append(n["exercise_id"])
+            body = {"answer": {"parts": {"answer": "zzz"}}, "session_id": s["id"], "context": "test", "instance_id": f"t-{len(served)}"}
+            r = self.post(f"/api/exercise/{n['exercise_id']}/submit", body)
+            self.assertEqual(set(r), {"recorded", "attempt_no", "instance_id"})      # no verdict, no solution
+            again = self.client.post(f"/api/exercise/{n['exercise_id']}/submit", data=json.dumps(body), content_type="application/json")
+            self.assertEqual(again.status_code, 400)                                 # one try per test question
+        served.append(self.post(f"/api/session/{s['id']}/next")["exercise_id"])
+        summ = self.post(f"/api/session/{s['id']}/end")
+        self.assertEqual([q["exercise_id"] for q in summ["review"]], served)
+        self.assertEqual([q["answered"] for q in summ["review"]], [True, True, False])
+        for q in summ["review"]:
+            self.assertFalse(q["correct"])
+            self.assertTrue(q["correct_answer"] and q["explanation"])
+        self.assertTrue(summ["review"][0]["your_answer"])
+        # outside a test, the same wrong answer gets full feedback
+        r = self.post(f"/api/exercise/{served[0]}/submit", {"answer": {"parts": {"answer": "zzz"}}, "context": "practice"})
+        self.assertFalse(r["correct"])
+        self.assertIn("parts", r)
+
+    def test_06d_header_has_basic_tabs_only(self):
+        html = self.client.get("/").get_data(as_text=True)
+        nav = re.search(r'<div class="navlinks">(.*?)</div>', html, re.S).group(1)
+        self.assertEqual(re.findall(r">([^<]+)</a>", nav), ["Dashboard", "Learn", "Practice", "Review", "Progress"])
+        tn = self.client.get("/tn").get_data(as_text=True)
+        self.assertIn('class="subnav"', tn)
+        self.assertNotIn("Counting model", tn.split("<main", 1)[1].split("<script", 1)[0])
+        learn = self.client.get("/learn/tn").get_data(as_text=True)
+        self.assertIn("How T(n) analysis works", learn)
+        self.assertIn('<a href="/learn" class="active">Learn</a>', learn)
 
     def test_07_generator_api(self):
         r = self.post("/api/generate", {"family": "nested", "seed": 7})

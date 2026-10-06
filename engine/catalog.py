@@ -50,9 +50,27 @@ TN_LEVELS = {
     9: "Level 9 · Common algorithms",
 }
 
-TRACK_LABELS = {"complexity": "Complexity", "pseudocode": "Pseudocode", "tn": "T(n) Analysis"}
+PROOF_TOPICS = {
+    "pf_poly": "Polynomial bounds",
+    "pf_growth": "Growth comparisons",
+    "pf_false": "Disproving bounds",
+    "pf_construct": "Proof construction",
+    "pf_debug": "Proof debugging",
+    "pf_limits": "Ratio & limit method",
+    "pf_tn": "Proving T(n) bounds",
+}
 
-TOPICS = {**COMPLEXITY_TOPICS, **PSEUDO_TOPICS, **TN_TOPICS}
+PROOF_LEVELS = {
+    1: "Level 1 · Simple polynomial bounds",
+    2: "Level 2 · Polynomial expressions",
+    3: "Level 3 · Comparing growth classes",
+    4: "Level 4 · False statements",
+    5: "Level 5 · Limits & advanced",
+}
+
+TRACK_LABELS = {"complexity": "Complexity", "pseudocode": "Pseudocode", "tn": "T(n) Analysis", "proofs": "Proofs"}
+
+TOPICS = {**COMPLEXITY_TOPICS, **PSEUDO_TOPICS, **TN_TOPICS, **PROOF_TOPICS}
 
 COMPLEXITY_TYPES = {
     "identify": "A · Identify the complexity",
@@ -76,7 +94,14 @@ PSEUDO_TYPES = {
 
 TN_TYPES = {"tn": "T(n) derivation"}
 
-TYPES = {**COMPLEXITY_TYPES, **PSEUDO_TYPES, **TN_TYPES}
+PROOF_TYPES = {
+    "proof": "A · Prove or disprove",
+    "proof_fill": "B · Complete the proof",
+    "proof_debug": "C · Find the flaw",
+    "proof_limit": "D · Ratio & limit method",
+}
+
+TYPES = {**COMPLEXITY_TYPES, **PSEUDO_TYPES, **TN_TYPES, **PROOF_TYPES}
 
 LEVELS = {
     1: "Level 1 · Fundamentals",
@@ -104,6 +129,7 @@ SESSION_TOPICS = {
     "mixed_complexity": "Mixed complexity",
     "pseudocode": "Pseudocode",
     "tn": "T(n) derivation",
+    "proofs": "Complexity proofs",
     "mixed": "Mixed (everything)",
 }
 

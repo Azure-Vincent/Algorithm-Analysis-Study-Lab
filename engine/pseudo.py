@@ -799,10 +799,11 @@ class Program:
         return self._run_guarded(lambda: fn(*args))
 
 
-def run_tests(src, tests, entry=None, params=None):
+def run_tests(src, tests, entry=None, params=None, one_indexed=False):
     """Run test cases against student code.
 
     Each test: {"args": [...], "expect": value, "check": "return" | "arg0" | "either"}
+    one_indexed: pass list arguments as 1-indexed arrays A[1..n] (the course's `for i := 1 to n` notation).
     Returns dict with runnable, error, passed, total, results.
     """
     try:
@@ -814,6 +815,8 @@ def run_tests(src, tests, entry=None, params=None):
     passed = 0
     for t in tests:
         args = [to_plist(copy.deepcopy(a)) for a in t["args"]]
+        if one_indexed:
+            args = [_one(a) if isinstance(a, list) else a for a in args]
         check = t.get("check", "return")
         prog.output = []
         try:

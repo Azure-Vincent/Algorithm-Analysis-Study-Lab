@@ -65,7 +65,7 @@ the pseudocode sandbox, checks it only listens on 127.0.0.1, restarts it and con
 
 ### Tests
 ```bash
-python -m unittest discover -s tests -v      # 82 tests: content, parser security, grading, API, stats, persistence
+python -m unittest discover -s tests -v      # 131 tests: content, parser security, grading, API, stats, persistence
 pip install playwright                         # optional: browser walkthrough (needs Chromium)
 python tests/e2e_browser.py                    # starts its own server on a temporary database
 E2E_EXE=dist/AlgorithmStudy python tests/e2e_browser.py   # same walkthrough against a built executable
@@ -82,7 +82,13 @@ correction → session report → statistics → Review Mistakes retry → serve
 | **T(n) Analysis** | 67 exercises across 9 levels (constant → single loops → sequential → nested → dependent/summations → logarithmic → n, m, k → best/worst case → common algorithms). Operation-table, direct and guided modes; T(n) and Θ graded separately; reference page |
 | Pseudocode Lab | 52 exercises (fill in, order, complete, write, pseudocode → complexity) plus 16 tracing and 17 debugging exercises |
 | Course convention | 36 more exercises (30 pseudocode + 6 complexity) written like the course slides: `procedure max(a1, a2, …, an: integers)`, `:=`, 1-indexed `a_i`, one-line `if … then`, `{comments}`. Filter with **Style → Course convention**; the interpreter runs the slides' code as written |
-| Practice sessions | Start in place on any track page from the topic, mode and level you picked, or use the optional Practice tab for mixed sessions. 5 / 10 / 20 / unlimited questions. Report with accuracy, hints, attempts, difficult topics |
+| Complexity proofs | 62 exercises on the formal definitions of O, Ω and Θ: prove or disprove f(n) ∈ O/Ω/Θ(g(n)) in four steps (inequality, c, n₀, justification), complete a proof, find the flaw in a wrong proof, ratio & limit method; true and false claims over 1, log n, √n, n, n log n, n², n³, 2ⁿ, n!. Feedback names the conceptual error (reversed inequality, c that only works on a finite range, n₀ too small, one-sided Θ, intuition instead of proof). Worked proofs are shown step by step |
+| Proof sandbox | Enter f(n), g(n) and O / Ω / Θ: intuition table, limit-based verdict, a valid (c, n₀), and a visual inequality checker (f(n) vs c·g(n), first counterexample). Tables and graphs are labelled as intuition, not proof. "Prove its complexity" turns a solved T(n) exercise into a Θ proof of its T(n) |
+| Proof mastery | Per-skill mastery (Big O / Ω / Θ proofs, selecting c, selecting n₀, polynomial bounds, growth comparisons, disproving bounds) on the Proofs and Progress pages; proof mistakes go to Review and proof topics feed Adaptive practice |
+| Mock exam | Practice → Mock exam generates a new, balanced exam each time (default 12: 3 asymptotic proofs with witnesses C and k, 3 pseudocode → T(n) → Big-O, 3 English → pseudocode → complexity or hand trace, 3 sequences / series / recurrences; 4–20 questions). Free navigation, flag for review, autosave; no answers until submitted. Graded with partial credit per rubric item (class, inequality, witnesses, reasoning, conclusion; idea, structure, output, complexity, explanation), scores per category, model solutions. Every question is validated before it is shown (limits and the proof checker for claims, an instrumented run for T(n), test cases for reference algorithms, SymPy for closed forms). History on the Mock exam and Progress pages |
+| Navigation | Five tabs: Dashboard, Learn, Practice, Review, Progress. Learn holds the Big O / pseudocode reference, T(n) analysis (with the counting model), the visualizer and the comparison calculator; Practice holds the subject pages, adaptive practice, the generator and practice tests |
+| Practice with feedback | Start in place on any subject page from the topic, mode and level you picked. Every wrong answer gets feedback right away, with hints, retries and solutions |
+| Practice tests | Generated 5 / 10 / 20 / unlimited-question tests: one try per question and no feedback, hints or solutions until the end; then a report plus every question with your answer, the correct answer and the explanation |
 | Adaptive practice | Weights topics, including T(n) topics, by smoothed first-try accuracy |
 | Review Mistakes | Every miss with your answer, the correct answer, the explanation, attempts, hints and history; T(n) misses also store the mistake category. 3 clean retries → mastered |
 | Learn / Visualizer / Compare / Generator | Reference with worked examples; growth-rate charts; algorithm comparison; question generator |

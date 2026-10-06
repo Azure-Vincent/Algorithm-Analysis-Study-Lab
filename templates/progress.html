@@ -9,7 +9,7 @@
 </div>
 
 <div class="grid grid-2">
-{% for key, title in [('complexity', 'Complexity Analysis'), ('pseudocode', 'Pseudocode Practice'), ('tn', 'T(n) Analysis')] %}
+{% for key, title in [('complexity', 'Complexity Analysis'), ('pseudocode', 'Pseudocode Practice'), ('tn', 'T(n) Analysis'), ('proofs', 'Complexity Proofs')] %}
   {% set t = ts[key] %}
   <div class="card pad-lg track-card {{ {'pseudocode': 'pc', 'tn': 'tn'}.get(key, '') }}">
     <h2>{{ title }}</h2>
@@ -23,6 +23,25 @@
     </div>
   </div>
 {% endfor %}
+</div>
+
+<div class="card pad-lg" style="margin-top:16px" id="mock-progress">
+  <h3>Mock exams</h3>
+  {% set done = mock_exams|selectattr('submitted_at')|list %}
+  {% if done %}
+  <table class="data"><tr><th>Date</th><th class="num">Questions</th><th class="num">Overall</th>{% for c in done[0].categories %}<th class="num">{{ c.label }}</th>{% endfor %}<th></th></tr>
+    {% for m in done %}<tr><td class="muted" style="font-size:.88rem">{{ m.created_at[:16].replace('T', ' ') }}</td><td class="num">{{ m.count }}</td><td class="num"><b>{{ m.score }}%</b></td>
+      {% for c in m.categories %}<td class="num">{{ c.percent }}%</td>{% endfor %}<td><a href="/mock/{{ m.id }}">Review →</a></td></tr>{% endfor %}
+  </table>
+  {% else %}<div class="empty">No submitted mock exams yet. <a href="/mock">Take one →</a></div>{% endif %}
+</div>
+
+<div class="card pad-lg" style="margin-top:16px" id="proof-progress">
+  <h3>Complexity proofs - mastery by skill</h3>
+  <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per skill, smoothed while there are only a few answers. Weak proof skills feed into <a href="/adaptive">Adaptive practice</a> through their topics.</p>
+  <table class="data"><tr><th>Skill</th><th class="num">Answered</th><th style="width:30%">Mastery</th><th style="width:20%">Eventually correct</th></tr>
+    {% for m in proof_mastery %}<tr><td>{{ m.label }}</td><td class="num">{{ m.answered }}</td><td>{{ accbar(m.mastery) }}</td><td>{{ accbar(m.eventual) }}</td></tr>{% endfor %}
+  </table>
 </div>
 
 {% set o = tnst.overall %}
@@ -54,7 +73,7 @@
     <h3>Accuracy by topic</h3>
     {% if topics %}
     <table class="data"><tr><th>Topic</th><th class="num">Answered</th><th style="width:45%">First-try accuracy</th></tr>
-      {% for r in topics %}<tr><td>{{ r.label }} <span class="faint" style="font-size:.8rem">{{ {'complexity': 'C', 'pseudocode': 'P', 'tn': 'T'}.get(r.track, '') }}</span></td><td class="num">{{ r.answered }}</td><td>{{ accbar(r.accuracy) }}</td></tr>{% endfor %}
+      {% for r in topics %}<tr><td>{{ r.label }} <span class="faint" style="font-size:.8rem">{{ {'complexity': 'C', 'pseudocode': 'P', 'tn': 'T', 'proofs': 'Pr'}.get(r.track, '') }}</span></td><td class="num">{{ r.answered }}</td><td>{{ accbar(r.accuracy) }}</td></tr>{% endfor %}
     </table>
     {% else %}<div class="empty">Answer a few questions to see topic statistics.</div>{% endif %}
   </div>
@@ -76,7 +95,7 @@
       {% for s in sessions %}<tr>
         <td class="mono" style="font-size:.85rem">{{ s.created_at.replace('T', ' ')[:16] }}</td>
         <td>{{ s.mode }}</td>
-        <td class="muted" style="font-size:.85rem">{{ SESSION_TOPICS.get(s.config.topic, s.config.topic) if s.mode != 'review' else 'mistakes' }}{% if s.config.difficulty and s.mode == 'practice' %} · {{ s.config.difficulty }}{% endif %}</td>
+        <td class="muted" style="font-size:.85rem">{{ SESSION_TOPICS.get(s.config.topic, s.config.topic) if s.mode != 'review' else 'mistakes' }}{% if s.config.difficulty and s.mode in ('practice', 'test') %} · {{ s.config.difficulty }}{% endif %}</td>
         <td class="num">{{ s.correct }}/{{ s.answered }}</td>
         <td><a href="#" data-sid="{{ s.id }}" class="sess-link">report</a></td></tr>{% endfor %}
     </table>

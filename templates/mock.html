@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Mock Exam{% endblock %}
+{% block content %}
+<div id="mock-setup" class="{{ 'hidden' if exam_id }}">
+  <div class="page-head">
+    <div>
+      <h1>Mock exam</h1>
+      <p>A freshly generated exam in the style of the course: prove asymptotic bounds with witnesses, analyze pseudocode, design algorithms in pseudocode, and work with sequences and summations. Every exam is new, so there is nothing to memorize.</p>
+    </div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card pad-lg">
+      <h3 style="margin-top:0">Start a new exam</h3>
+      <ul class="muted" style="font-size:.92rem;margin-top:0">
+        {% for key, label in categories.items() %}<li><b>{{ label }}</b> - {{ {'asym': 'show f is O / Ω / Θ (g) with witnesses C and k, or decide whether a claim holds', 'panalysis': 'count the basic operation, derive T(n), simplify, give the Big-O class', 'design': 'English problem → your pseudocode → its complexity or a hand trace', 'discrete': 'arithmetic sequences and series, closed forms, recurrences'}[key] }}</li>{% endfor %}
+      </ul>
+      <div class="config-row"><span class="lab">Number of questions</span>
+        <div class="seg" id="mock-count" role="radiogroup" aria-label="Number of questions">
+          <button type="button" data-v="4">4</button><button type="button" data-v="8">8</button><button type="button" data-v="12" class="on">12</button><button type="button" data-v="16">16</button><button type="button" data-v="20">20</button>
+        </div>
+      </div>
+      <p class="muted" style="font-size:.86rem">Questions are split evenly across the four categories. No answers or hints are shown until you submit; your work is saved as you type, so you can move between questions freely.</p>
+      <button class="btn primary" id="mock-start">Start mock exam</button>
+    </div>
+    <div class="card pad-lg">
+      <h3 style="margin-top:0">Your mock exams</h3>
+      {% if history %}
+      <table class="data">
+        <tr><th>Started</th><th class="num">Questions</th><th class="num">Score</th><th></th></tr>
+        {% for h in history %}
+        <tr><td class="muted" style="font-size:.88rem">{{ h.created_at[:16].replace('T', ' ') }}</td><td class="num">{{ h.count }}</td>
+          <td class="num">{% if h.submitted_at %}<b>{{ h.score }}%</b>{% else %}<span class="badge amber">in progress</span>{% endif %}</td>
+          <td><a href="/mock/{{ h.id }}">{{ 'Review' if h.submitted_at else 'Resume' }} →</a></td></tr>
+        {% endfor %}
+      </table>
+      {% else %}<div class="empty">No mock exams yet.</div>{% endif %}
+    </div>
+  </div>
+</div>
+<div id="mock-root"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mock.js') }}"></script>
+<script>MockExam.init({{ exam_id|tojson }});</script>
+{% endblock %}

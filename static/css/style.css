@@ -72,6 +72,11 @@ small, .muted { color: var(--muted); }
 }
 .navlinks a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 .navlinks a.active { color: var(--text); background: var(--surface-3); }
+.subnav { background: var(--surface); border-bottom: 1px solid var(--border); }
+.subnav .inner { max-width: 1200px; margin: 0 auto; padding: 6px 20px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.subnav a { color: var(--muted); padding: 5px 11px; border-radius: 999px; white-space: nowrap; font-size: .88rem; border: 1px solid transparent; }
+.subnav a:hover { color: var(--text); text-decoration: none; border-color: var(--border-strong); }
+.subnav a.active { color: var(--accent); background: var(--accent-soft); }
 .container { max-width: 1200px; margin: 0 auto; padding: 26px 20px 60px; }
 .narrow { max-width: 900px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
@@ -377,13 +382,10 @@ canvas.chart { width: 100%; height: 380px; display: block; }
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--surface-3); border: 1px solid var(--border-strong); padding: 10px 16px; border-radius: 8px; z-index: 60; }
 .hidden { display: none !important; }
 
-.topnav .inner { max-width: 1440px; gap: 12px; }
 .navlinks { flex: 1; min-width: 0; }
-.navlinks a { padding: 6px 8px; font-size: .88rem; }
-@media (max-width: 1280px) { .navlinks a { padding: 6px 6px; font-size: .84rem; } }
-@media (max-width: 1150px) {
-  .topnav .inner { height: auto; flex-wrap: wrap; padding: 8px 20px; row-gap: 4px; }
-  .navlinks { order: 3; flex-basis: 100%; flex-wrap: wrap; overflow: visible; }
+@media (max-width: 560px) {
+  .topnav .inner { height: auto; flex-wrap: wrap; padding: 8px 16px; row-gap: 4px; }
+  .navlinks { order: 3; flex-basis: 100%; }
 }
 
 /* ------------------------------------------------------------------ T(n) Analysis */
@@ -454,3 +456,72 @@ canvas.chart { width: 100%; height: 380px; display: block; }
 .quick-practice .qp-info .muted { font-size: .86rem; }
 .quick-practice .qp-lab { font-size: .88rem; }
 .qp-back { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: .9rem; }
+
+/* Practice test results: one collapsible row per question */
+.test-q summary { display: block; }
+.test-q.ok { border-left: 3px solid var(--green); }
+.test-q.bad { border-left: 3px solid var(--red); }
+.test-block { margin: 8px 0; }
+.test-block pre.plain { white-space: pre-wrap; margin: 4px 0 0; }
+
+/* ------------------------------------------------------------------ Time Complexity Proofs */
+.proof-defn { font-size: .95rem; }
+.proof-text { white-space: pre-wrap; }
+.proof-table td, .proof-table th { font-family: var(--mono); font-size: .85rem; }
+.proof-steps { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.proof-step .plabel { display: block; margin-bottom: 6px; }
+.proof-step input.proof-ineq { width: 100%; max-width: 560px; font-family: var(--mono); }
+.proof-step textarea { width: 100%; min-height: 70px; }
+.step-mark { margin-left: 4px; }
+.proof-msgs { margin: 0; padding-left: 18px; }
+.proof-msgs li + li { margin-top: 6px; }
+.fb-block.proof-wrong { border-color: rgba(240, 113, 120, .45); }
+ol.worked { padding-left: 22px; line-height: 1.7; }
+ol.worked li { margin: 2px 0; }
+.proof-fill { font-family: var(--mono); font-size: 14px; background: #0b0e13; border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; overflow-x: auto; }
+.pf-line { white-space: pre; line-height: 2.2; }
+.pf-blank { font-family: var(--mono); width: 7ch; padding: 2px 6px; margin: 0 2px; }
+.pf-blank.right { border-color: var(--green); background: var(--green-soft); }
+.pf-blank.wrong { border-color: var(--red); background: var(--red-soft); }
+.theta-diagram { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; font-size: .9rem; }
+.theta-diagram .td-f, .theta-diagram .td-theta { font-family: var(--mono); padding: 4px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface-2); }
+.theta-diagram .td-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.theta-diagram .td-box { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 18px; border-radius: 9px; border: 1px solid; min-width: 170px; }
+.theta-diagram .td-box span { font-family: var(--mono); font-size: 1.05rem; }
+.theta-diagram .td-box small { color: var(--muted); font-family: var(--mono); }
+.theta-diagram .lower { border-color: var(--green); background: var(--green-soft); }
+.theta-diagram .upper { border-color: var(--amber); background: var(--amber-soft); }
+.sandbox-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.sandbox-row input[type=text] { min-width: 180px; font-family: var(--mono); }
+.chart-wrap { margin-top: 12px; }
+.legend.sw-legend span::before { background: var(--sw, transparent); }
+.legend span.nosq::before { display: none; }
+.prove-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+table.proof-table th { text-transform: none; letter-spacing: 0; }
+
+/* ------------------------------------------------------------------ Mock exam */
+.mock-layout { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.mock-nav { flex: 1 1 200px; max-width: 240px; position: sticky; top: 74px; padding: 14px; }
+.mock-main { flex: 999 1 560px; min-width: 0; }
+.mock-nav-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.mock-nav-btn { min-height: 40px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--muted);
+  font: inherit; font-weight: 600; cursor: pointer; position: relative; }
+.mock-nav-btn.answered { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.mock-nav-btn.flagged::after { content: "⚑"; position: absolute; top: -6px; right: -4px; font-size: .8rem; color: var(--red); }
+.mock-nav-btn.current { outline: 2px solid var(--accent); outline-offset: 1px; color: var(--text); }
+.mock-legend { font-size: .78rem; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mock-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.mock-legend .sw.answered { background: var(--accent-soft); border: 1px solid var(--accent); }
+.mock-legend .sw.flagged { background: var(--red-soft); border: 1px solid var(--red); }
+.mock-q-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 4px; }
+.mock-q-num { font-weight: 600; color: var(--muted); }
+.mock-text { white-space: pre-wrap; line-height: 1.6; }
+.mock-fields { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.mock-field .plabel { display: block; margin-bottom: 6px; }
+.mock-field textarea { width: 100%; min-height: 110px; }
+.mock-input { width: 100%; max-width: 560px; font-family: var(--mono); }
+.btn.flag-on { border-color: var(--red); color: var(--red); }
+.mock-big { font-size: 3rem; font-weight: 700; line-height: 1.1; }
+.mock-model { white-space: pre-wrap; }
+.mock-rubric td:last-child { color: var(--muted); font-size: .88rem; }
+@media (max-width: 760px) { .mock-nav { position: static; max-width: none; } }

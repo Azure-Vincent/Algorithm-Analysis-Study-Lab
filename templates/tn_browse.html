@@ -8,10 +8,10 @@
 <div class="page-head">
   <div>
     <h1>T(n) Analysis</h1>
-    <p>Go from an algorithm to its operation-count function: count operations → construct T(n) → simplify → Θ.</p>
+    <p>Count operations → construct T(n) → simplify → Θ. New to this? Read <a href="/learn/tn">Learn → T(n) analysis</a> first.</p>
   </div>
   <div class="btn-row" id="quick-diff">
-    <a class="btn" href="/tn/reference">T(n) reference</a>
+    <a class="btn" href="/learn/tn">How T(n) works</a>
     <button class="btn primary" data-difficulty="beginner">Practice: beginner</button>
     <button class="btn" data-difficulty="intermediate">Intermediate</button>
     <button class="btn" data-difficulty="advanced">Advanced</button>
@@ -20,20 +20,7 @@
 
 <div id="browse">
 
-<div class="grid grid-2">
-  <div class="card pad-lg">
-    <h3>How it works</h3>
-    <div class="tn-panels" style="margin-top:4px">
-      <div class="tn-panel p1"><div class="k">1 · Count</div><div class="v mono">cost × executions</div><div class="d">for every row</div></div>
-      <div class="tn-panel p1"><div class="k">2 · Construct</div><div class="v mono">T(n) = 4n² + 6n + 3</div><div class="d">operation-count model</div></div>
-      <div class="tn-panel p2"><div class="k">3 · Dominant</div><div class="v mono">4n²</div><div class="d">fastest-growing term</div></div>
-      <div class="tn-panel p3"><div class="k">4 · Classify</div><div class="v mono">Θ(n²)</div><div class="d">drop the constant</div></div>
-    </div>
-    <p class="muted" style="font-size:.9rem">Three ways to work each exercise: fill in an <b>operation table</b> row by row, enter T(n) <b>directly</b>, or follow a <b>guided derivation</b> one step at a time. T(n) and Θ are graded separately, and wrong answers get feedback on the specific slip (a missing final loop check, an inner loop counted once, n and m merged…).</p>
-    <details class="method"><summary>The counting model used everywhere in this section</summary>
-      <table class="data tn-model">{% for sym, desc, cost in TN_MODEL %}<tr><td class="mono">{{ sym }}</td><td>{{ desc }}</td><td class="num"><b>{{ cost }}</b></td></tr>{% endfor %}</table>
-    </details>
-  </div>
+<div class="grid">
   <div class="card pad-lg">
     <h3>Your T(n) statistics</h3>
     {% if o.answered %}
@@ -72,6 +59,7 @@
 <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/proof.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runner.js') }}"></script>
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 <script src="{{ url_for('static', filename='js/quickpractice.js') }}"></script>

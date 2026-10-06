@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Proof Sandbox{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Proof sandbox</h1>
+    <p>Investigate whether f(n) ∈ O / Ω / Θ (g(n)) - then test constants c and n₀ against the definition. Tables and graphs build <b>intuition</b>; only an argument that covers <b>every</b> n ≥ n₀ is a proof.</p>
+  </div>
+  <div class="btn-row"><a class="btn" href="/learn/proofs">The definitions</a><a class="btn" href="/proofs">Proof exercises</a></div>
+</div>
+
+<div class="card pad-lg">
+  <div class="sandbox-row">
+    <label class="field">f(n) =<input type="text" id="sb-f" value="log(n)" autocomplete="off" spellcheck="false"></label>
+    <label class="field">g(n) =<input type="text" id="sb-g" value="n^2" autocomplete="off" spellcheck="false"></label>
+    <div class="field">Relationship
+      <div class="seg" id="sb-rel" role="radiogroup" aria-label="Relationship">
+        <button type="button" data-v="O" class="on">O</button><button type="button" data-v="omega">Ω</button><button type="button" data-v="theta">Θ</button>
+      </div>
+    </div>
+    <button class="btn primary" id="sb-go">Investigate</button>
+  </div>
+  <p class="muted" style="font-size:.85rem;margin:10px 0 0">Allowed: numbers, n, + − * / ^ ( ), log(n) (base 2), sqrt(n), 2^n, n! - e.g. <code>3n^2 + 5n + 2</code>, <code>n log n</code>, <code>2^n</code>. Nothing you type is executed; it is read by the app's own math parser.</p>
+</div>
+
+<div id="sb-out" class="hidden">
+  <div class="grid grid-2" style="margin-top:16px">
+    <div class="card pad-lg">
+      <h3 style="margin-top:0">1 · Intuition: a table <span class="badge amber">not a proof</span></h3>
+      <div id="sb-table"></div>
+      <p class="muted" style="font-size:.85rem">Watch the ratio column: shrinking toward 0, settling near a constant, or growing without bound?</p>
+    </div>
+    <div class="card pad-lg">
+      <h3 style="margin-top:0">2 · Limit argument <span class="badge blue">rigorous, but not the definition</span></h3>
+      <div class="formula" id="sb-limit"></div>
+      <p id="sb-limit-text"></p>
+      <div id="sb-verdict"></div>
+      <h3>3 · Proof from the definition</h3>
+      <p class="muted" style="font-size:.9rem" id="sb-def"></p>
+      <p>Required inequality: <b class="mono" id="sb-req"></b></p>
+      <p id="sb-suggest" class="muted" style="font-size:.9rem"></p>
+    </div>
+  </div>
+
+  <div class="card pad-lg" style="margin-top:16px">
+    <h3 style="margin-top:0">Visual inequality checker</h3>
+    <p class="muted" style="font-size:.9rem;margin-top:-4px">Enter constants and see f(n) against c·g(n). The checker tests every integer n from n₀ to n₀ + 400, then sparser points up to 10¹⁰⁰, and uses the limit to judge "all large n". <b>Finite numerical testing is not a mathematical proof</b> - you still have to show the inequality algebraically.</p>
+    <div class="sandbox-row">
+      <label class="field" id="f-c">c =<input type="text" id="sb-c" value="1" class="number-input" autocomplete="off"></label>
+      <label class="field hidden" id="f-c1">c₁ =<input type="text" id="sb-c1" value="1" class="number-input" autocomplete="off"></label>
+      <label class="field hidden" id="f-c2">c₂ =<input type="text" id="sb-c2" value="4" class="number-input" autocomplete="off"></label>
+      <label class="field">n₀ =<input type="text" id="sb-n0" value="1" class="number-input" autocomplete="off"></label>
+      <label class="field">Graph up to n =<input type="number" id="sb-nmax" value="40" min="5" max="200" class="number-input"></label>
+      <button class="btn" id="sb-check">Check constants</button>
+    </div>
+    <div id="sb-check-out"></div>
+    <div class="chart-wrap"><canvas id="sb-chart" style="width:100%;height:340px" aria-label="f(n) compared with c·g(n)"></canvas></div>
+    <div class="legend sw-legend" id="sb-legend"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id), esc = BT.esc;
+  let rel = "O", last = null;
+  const params = new URLSearchParams(location.search);
+  if (params.get("f")) $("sb-f").value = params.get("f");
+  if (params.get("g")) $("sb-g").value = params.get("g");
+  function setRel(v) {
+    rel = v;
+    document.querySelectorAll("#sb-rel button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+    $("f-c").classList.toggle("hidden", v === "theta");
+    $("f-c1").classList.toggle("hidden", v !== "theta");
+    $("f-c2").classList.toggle("hidden", v !== "theta");
+  }
+  document.querySelectorAll("#sb-rel button").forEach((b) => b.addEventListener("click", () => setRel(b.dataset.v)));
+  if (["O", "omega", "theta"].includes(params.get("rel"))) setRel(params.get("rel"));
+
+  function consts() {
+    return rel === "theta" ? { c1: $("sb-c1").value, c2: $("sb-c2").value, n0: $("sb-n0").value } : { c: $("sb-c").value, n0: $("sb-n0").value };
+  }
+
+  async function run(withConsts) {
+    const body = { f: $("sb-f").value, g: $("sb-g").value, rel: rel, nmax: +$("sb-nmax").value || 40 };
+    if (withConsts) body.consts = consts();
+    let r;
+    try { r = await BT.api("/api/proofs/investigate", body); } catch (e) { BT.toast(e.message); return; }
+    if (!r.ok) { BT.toast(r.error); return; }
+    last = r;
+    $("sb-out").classList.remove("hidden");
+    let t = '<table class="data proof-table"><tr><th class=num>n</th><th class=num>' + esc(r.f_text) + '</th><th class=num>' + esc(r.g_text) + '</th><th class=num>ratio</th></tr>';
+    r.table.forEach((row) => { t += "<tr><td class=num>" + row.n + "</td><td class=num>" + esc(row.f) + "</td><td class=num>" + esc(row.g) + "</td><td class=num>" + esc(row.ratio) + "</td></tr>"; });
+    $("sb-table").innerHTML = t + "</table>";
+    $("sb-limit").textContent = "lim (n→∞) " + r.f_text + " / " + r.g_text + " = " + r.limit;
+    $("sb-limit-text").textContent = r.limit_conclusion;
+    $("sb-verdict").innerHTML = r.truth === null ? "" : '<div class="callout ' + (r.truth ? "green" : "red") + '">So <b>' + esc(r.claim) + "</b> is " +
+      (r.truth ? "<b>true</b>." : "<b>false</b>: no constants can satisfy the definition.") + "</div>";
+    $("sb-def").textContent = r.definition;
+    $("sb-req").textContent = r.required;
+    $("sb-suggest").textContent = r.suggested ? "One valid (simple) choice the checker found: " + Object.entries(r.suggested).map(([k, v]) =>
+      ({ c: "c", c1: "c₁", c2: "c₂", n0: "n₀" }[k]) + " = " + v).join(", ") + ". Any valid constants prove it - try your own below." : "";
+    draw(r);
+  }
+
+  function draw(r) {
+    const ns = r.n, toVal = (arr) => (x) => { const v = arr[Math.round(x) - 1]; return v == null ? 0 : Math.pow(10, v); };
+    const series = [{ label: "f(n) = " + r.f_text, color: "#6ea8fe", fn: toVal(r.f_log10), integer: true }];
+    const colors = { upper: "#e6b450", lower: "#4fc48b" };
+    let html = "";
+    (r.checks || []).forEach((ch) => {
+      series.push({ label: ch.k + "·g(n) = " + ch.k_value + "·" + r.g_text, color: colors[ch.side], fn: toVal(ch.series), integer: true });
+      const ineq = ch.side === "upper" ? "f(n) ≤ " + ch.k + "·g(n)" : ch.k + "·g(n) ≤ f(n)";
+      if (ch.ok) {
+        html += '<div class="callout green"><b>' + esc(ineq) + "</b> held at every tested n ≥ n₀ = " + esc(r.n0) + ", and the limit says it keeps holding. That is strong evidence - now prove it algebraically.</div>";
+      } else if (ch.negative) {
+        html += '<div class="callout red"><b>' + esc(ineq) + "</b>: f(n) is negative at n = " + ch.first_fail + " - the definition needs 0 ≤ f(n). Choose a larger n₀.</div>";
+      } else if (!ch.eventually) {
+        html += '<div class="callout red"><b>' + esc(ineq) + "</b> fails for large n" + (ch.first_fail ? " - first tested counterexample: n = " + ch.first_fail + " (f(n) = " + esc(ch.fail_f) + ", " + esc(ch.k) + "·g(n) = " + esc(ch.fail_cg) + ")" : "") +
+          ". No n₀ can rescue this " + esc(ch.k) + "." + (rel !== "omega" && ch.side === "upper" && r.truth === false ? " In fact no c works at all." : "") + "</div>";
+      } else {
+        html += '<div class="callout amber"><b>' + esc(ineq) + "</b> fails at n = " + ch.first_fail + " (f(n) = " + esc(ch.fail_f) + ", " + esc(ch.k) + "·g(n) = " + esc(ch.fail_cg) +
+          "), which is ≥ n₀ - but it does hold for all large n. Try a larger n₀.</div>";
+      }
+    });
+    html += '<p class="muted" style="font-size:.85rem">Reminder: a graph or table shows finitely many n. Big O / Ω / Θ are statements about <b>every</b> n ≥ n₀.</p>';
+    $("sb-check-out").innerHTML = r.checks ? html : '<p class="muted">Enter constants and press <b>Check constants</b>.</p>';
+    Growth.drawChart($("sb-chart"), series, { xmin: 1, xmax: ns.length, logY: true, marker: r.checks ? Math.max(1, Math.min(ns.length, Math.ceil(parseFloat(r.n0) || 1))) : null });
+    $("sb-legend").innerHTML = series.map((s) => '<span style="--sw:' + s.color + '">' + esc(s.label) + "</span>").join("") + (r.checks ? '<span class="muted nosq">vertical line: n₀</span>' : "");
+  }
+
+  $("sb-go").addEventListener("click", () => run(false));
+  $("sb-check").addEventListener("click", () => run(true));
+  ["sb-f", "sb-g"].forEach((id) => $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") run(false); }));
+  window.addEventListener("resize", () => { if (last) draw(last); });
+  run(false);
+})();
+</script>
+{% endblock %}

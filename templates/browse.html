@@ -15,15 +15,33 @@
   'write': 'Write the whole algorithm from a description. Tested, not string-matched.',
   'debug': 'Find the line with the logical error, then fix it.',
   'trace': 'Execute by hand and fill in the variables after each step.',
-  'to_complexity': 'Analyze algorithms you built in the lab.'} %}
+  'to_complexity': 'Analyze algorithms you built in the lab.',
+  'proof': 'Decide true or false; give c and n₀ (or explain why none exist). Worked proof after.',
+  'proof_fill': 'Fill the missing pieces of a proof, line by line.',
+  'proof_debug': 'Spot what is wrong with an incorrect proof.',
+  'proof_limit': 'Use f(n)/g(n) and limits - and tell intuition, definition and limit apart.'} %}
+{% set LV = levels or LEVELS %}
 <div class="page-head">
   <div>
     <h1>{{ heading }}</h1>
-    <p>{% if track == 'complexity' %}Pick a mode, level or topic, then start practicing right here - or open a single exercise below.{% else %}Start with small pieces and build up to full algorithms. Pick a mode or topic and start practicing right here. Everything you write is run against test cases.{% endif %}</p>
+    <p>{% if track == 'proofs' %}Prove (or disprove) f(n) ∈ O / Ω / Θ (g(n)) from the formal definitions by finding constants c and n₀. New to proofs? Read <a href="/learn/proofs">Learn → Complexity proofs</a>; to experiment, open the <a href="/proofs/sandbox">Proof sandbox</a>.{% elif track == 'complexity' %}Pick a mode, level or topic, then start practicing right here - or open a single exercise below.{% else %}Start with small pieces and build up to full algorithms. Pick a mode or topic and start practicing right here. Everything you write is run against test cases.{% endif %}</p>
   </div>
 </div>
 
 <div id="browse">
+{% if track == 'proofs' %}
+<div class="card pad-lg" style="margin-bottom:16px">
+  <h3 style="margin-top:0">Your proof mastery</h3>
+  <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per skill (smoothed while you have only a few answers). Weak skills get extra weight in <a href="/adaptive">Adaptive practice</a>; missed proofs go to <a href="/review">Review</a>.</p>
+  <table class="data mastery">
+    <tr><th>Skill</th><th class="num">Answered</th><th style="width:40%">Mastery</th></tr>
+    {% for m in mastery %}
+    <tr><td>{{ m.label }}</td><td class="num">{{ m.answered }}</td>
+      <td>{% if m.mastery is not none %}<div style="display:flex;gap:8px;align-items:center"><div class="bar {{ 'red' if m.mastery < 55 else ('amber' if m.mastery < 75 else 'green') }}" style="flex:1"><span style="width:{{ m.mastery }}%"></span></div><span class="mono" style="width:44px;text-align:right">{{ m.mastery }}%</span></div>{% else %}<span class="faint">not practiced yet</span>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
 
 <div class="mode-cards" id="modes">
   <div class="mode-card active" data-type=""><b>All exercise types</b><span>Everything in this track</span></div>
@@ -55,12 +73,12 @@ return location</pre>
 
 <div class="filters">
   <label class="field">Level
-    <select id="f-level"><option value="">All levels</option>{% for k, v in LEVELS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    <select id="f-level"><option value="">All levels</option>{% for k, v in LV.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
   </label>
   <label class="field">Topic
     <select id="f-topic"><option value="">All topics</option>{% for k, v in topics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
   </label>
-  <label class="field">Style
+  <label class="field{{ ' hidden' if track == 'proofs' }}">Style
     <select id="f-style"><option value="">Any style</option><option value="course">Course convention (:=, a₁…aₙ)</option><option value="general">General pseudocode</option></select>
   </label>
   <label class="field">Status
@@ -78,13 +96,14 @@ return location</pre>
 <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/proof.js') }}"></script>
 <script src="{{ url_for('static', filename='js/runner.js') }}"></script>
 <script src="{{ url_for('static', filename='js/session.js') }}"></script>
 <script src="{{ url_for('static', filename='js/quickpractice.js') }}"></script>
 <script>
 (function () {
   const track = {{ track|tojson }};
-  const LEVELS = {{ LEVELS|tojson }};
+  const LEVELS = {{ (levels or LEVELS)|tojson }};
   const TRACK_NAME = {{ heading|tojson }};
   let all = [], type = "";
   const $ = (id) => document.getElementById(id);
