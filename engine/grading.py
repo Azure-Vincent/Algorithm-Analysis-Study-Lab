@@ -8,6 +8,7 @@ from engine.pseudo import fmt, PseudoError
 from engine.sandbox import run_tests  # student code always runs in an isolated, limited process
 
 MARKER_RE = re.compile(r"^\s*//\s*complete this section\s*$", re.I)
+PARTS_TYPES = {"to_complexity", "proof_debug", "proof_limit"}      # answered through multiple-choice / number parts
 
 
 # ============================================================================ public views
@@ -15,9 +16,10 @@ def public_view(ex):
     t = ex["type"]
     base = {k: ex.get(k) for k in ("id", "track", "type", "topic", "level", "difficulty", "title", "prompt", "source")}
     base["hint_count"] = len(ex.get("hints", []))
-    if ex["track"] == "complexity" or t in ("to_complexity",):
+    if ex["track"] == "complexity" or t in PARTS_TYPES:
         base.update(code=ex.get("code", ""), formula=ex.get("formula"), staged=ex.get("staged", False),
-                    scratch=ex.get("scratch", False), algos=ex.get("algos"), source_title=ex.get("source_title"))
+                    scratch=ex.get("scratch", False), algos=ex.get("algos"), source_title=ex.get("source_title"),
+                    proof_text=ex.get("proof_text"), claim=ex.get("claim"))
         parts = []
         for p in ex["parts"]:
             q = {k: v for k, v in p.items() if k not in ("answer", "why")}
@@ -203,7 +205,7 @@ def grade_parts(ex, answer):
 # ============================================================================ main entry
 def grade(ex, answer):
     t = ex["type"]
-    if ex["track"] == "complexity" or t == "to_complexity":
+    if ex["track"] == "complexity" or t in PARTS_TYPES:
         res = grade_parts(ex, answer)
         if (answer or {}).get("scratch"):
             res["answer_text"] += f" | scratch: {answer['scratch'][:300]}"
@@ -226,7 +228,7 @@ def grade(ex, answer):
 def solution_payload(ex):
     t = ex["type"]
     sol = {"steps": ex.get("steps", []), "note": ex.get("note")}
-    if ex["track"] == "complexity" or t == "to_complexity":
+    if ex["track"] == "complexity" or t in PARTS_TYPES:
         sol["highlights"] = ex.get("highlights", [])
         sol["answers"] = [{"id": p["id"], "label": p["label"], "answer": _wrap(p, p["answer"]) if p["kind"] != "order" else " < ".join(p["answer"]),
                            "raw": p["answer"]} for p in ex["parts"]]
@@ -249,7 +251,7 @@ def solution_payload(ex):
 
 def correct_text(ex):
     t = ex["type"]
-    if ex["track"] == "complexity" or t == "to_complexity":
+    if ex["track"] == "complexity" or t in PARTS_TYPES:
         return "; ".join(f"{p['label']}: {_wrap(p, p['answer']) if p['kind'] != 'order' else ' < '.join(p['answer'])}" for p in ex["parts"])
     if t == "trace":
         return " | ".join(", ".join(f"{w}={fmt(r[w])}" for w in ex["watch"]) for r in ex["rows"])

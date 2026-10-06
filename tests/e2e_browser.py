@@ -218,6 +218,39 @@ with tempfile.TemporaryDirectory() as tmp:
             check(True, "pseudocode exercise still loads")
             page.goto(BASE + "/visualizer")
             check("n!" in page.inner_text("#ops"), "visualizer works")
+
+            # 7b. time complexity proofs: c / n₀ feedback, worked proof, sandbox, T(n) → proof
+            page.goto(BASE + "/exercise/pf-o-n3-2n")
+            page.wait_for_selector(".proof-runner")
+            page.click(".opt:has-text('True - it can be proven')")
+            page.fill(".proof-step[data-step=inequality] input", "n^3 <= c * 2^n")
+            page.fill(".proof-step[data-step=c] input", "1")
+            page.fill(".proof-step[data-step=n0] input", "1")
+            page.fill(".proof-step[data-step=explanation] textarea", "for n >= 10, n^3 <= 2^n by induction")
+            page.click(".proof-runner button:has-text('Submit')")
+            page.wait_for_selector(".verdict.bad")
+            check("fails at n = 2" in page.inner_text(".feedback") and "larger n₀" in page.inner_text(".feedback"),
+                  "proof: n₀ too small is explained with a counterexample")
+            page.fill(".proof-step[data-step=n0] input", "10")
+            page.click(".proof-runner button:has-text('Submit again')")
+            page.wait_for_selector(".verdict.ok")
+            page.click("button:has-text('Show all')")
+            fb = page.inner_text(".feedback")
+            check("Choose c = 1 and n₀ = 10" in fb and "not a proof" in fb.lower() and "limit argument" in fb.lower(),
+                  "proof accepted; worked proof separates intuition and the limit argument")
+            page.goto(BASE + "/proofs/sandbox?f=n^2&g=n&rel=O")
+            page.wait_for_selector("#sb-table table")
+            page.fill("#sb-c", "10")
+            page.click("#sb-check")
+            page.wait_for_selector("#sb-check-out .callout")
+            check("n = 11" in page.inner_text("#sb-check-out") and "not a mathematical proof" in page.inner_text("main"),
+                  "sandbox shows the first counterexample and that testing is not proof")
+            page.goto(BASE + "/exercise/tn2-sum")
+            page.wait_for_selector(".tn-runner")
+            page.click(".tn-runner button:has-text('Show solution')")
+            page.click("button:has-text('Prove its complexity')")
+            page.wait_for_selector(".theta-diagram")
+            check("pf-tn-tn2-sum" in page.url, "T(n) exercise leads to a Θ proof of its T(n)")
             browser.close()
 
         # 8. restart the server: progress persists

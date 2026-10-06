@@ -15,10 +15,10 @@ import sqlite3
 import threading
 from datetime import datetime
 
-SEED_VERSION = "2026.10.1"
+SEED_VERSION = "2026.10.6"
 SCHEMA_VERSION = 4
 MASTERY_STREAK = 3
-PROGRESS_TABLES = ("questions", "attempts", "mistakes", "sessions", "user_solutions")
+PROGRESS_TABLES = ("questions", "attempts", "mistakes", "sessions", "user_solutions", "proof_skills")
 _PROJECT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATH = os.path.join(_PROJECT, "instance", "trainer.db")
 LOCAL_EMAIL = "local@localhost"
@@ -140,6 +140,12 @@ CREATE TABLE IF NOT EXISTS user_solutions (
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     exercise_id TEXT NOT NULL, code TEXT, created_at TEXT
 );
+CREATE TABLE IF NOT EXISTS proof_skills (
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, instance_id TEXT NOT NULL, exercise_id TEXT NOT NULL,
+    skill TEXT NOT NULL, first_correct INTEGER, correct INTEGER DEFAULT 0, attempts INTEGER DEFAULT 0, updated_at TEXT,
+    UNIQUE (user_id, instance_id, skill)
+);
+CREATE INDEX IF NOT EXISTS idx_ps_user ON proof_skills(user_id, skill);
 CREATE INDEX IF NOT EXISTS idx_q_user ON questions(user_id, exercise_id);
 CREATE INDEX IF NOT EXISTS idx_q_sess ON questions(session_id);
 CREATE INDEX IF NOT EXISTS idx_a_user ON attempts(user_id, exercise_id);
@@ -453,6 +459,24 @@ def end_session(sid):
     c = conn()
     c.execute("UPDATE sessions SET ended_at=COALESCE(ended_at, ?) WHERE id=? AND user_id=?", (now(), sid, uid()))
     c.commit()
+
+
+def record_proof_skills(instance_id, exercise_id, skills):
+    """Per-skill outcome of one proof attempt. The first graded attempt of each skill counts for mastery."""
+    c = conn()
+    u = uid()
+    with c:
+        for skill, ok in skills.items():
+            c.execute("INSERT INTO proof_skills(user_id, instance_id, exercise_id, skill, first_correct, correct, attempts, updated_at) "
+                      "VALUES (?,?,?,?,?,?,1,?) ON CONFLICT(user_id, instance_id, skill) DO UPDATE SET "
+                      "correct=MAX(correct, excluded.correct), attempts=attempts+1, updated_at=excluded.updated_at",
+                      (u, instance_id, exercise_id, skill, int(bool(ok)), int(bool(ok)), now()))
+
+
+def proof_skill_rows():
+    return [dict(r) for r in conn().execute(
+        "SELECT skill, COUNT(*) AS answered, SUM(first_correct) AS first_correct, SUM(correct) AS correct "
+        "FROM proof_skills WHERE user_id=? GROUP BY skill", (uid(),))]
 
 
 def question_attempts(instance_id):

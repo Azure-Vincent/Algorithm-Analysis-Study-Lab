@@ -475,6 +475,19 @@
       fb.appendChild(blk);
     });
     if (sol.note) fb.appendChild(el("div", { class: "callout", text: sol.note }));
+    if (this.view.provable && !this.opts.test) {
+      // the next stage of the progression: hypothesis Θ(g) -> formal proof with c₁, c₂ and n₀
+      const v = this.view, cta = el("div", { class: "callout green prove-cta" });
+      cta.innerHTML = "<b>Next: prove it.</b> Θ(" + esc(sol.cases.all.theta) + ") is still a hypothesis until you show T(n) ∈ O(" + esc(sol.cases.all.theta) +
+        ") and T(n) ∈ Ω(" + esc(sol.cases.all.theta) + ") with explicit constants. ";
+      cta.appendChild(el("button", { class: "btn small primary", text: "Prove its complexity →", onclick: async function () {
+        try {
+          const r = await BT.api("/api/proofs/from_tn/" + encodeURIComponent(v.id), {});
+          window.location.href = "/exercise/" + encodeURIComponent(r.id) + "?ctx=free";
+        } catch (e) { BT.toast(e.message); }
+      } }));
+      fb.appendChild(cta);
+    }
   };
 
   window.TnRunner = TnRunner;

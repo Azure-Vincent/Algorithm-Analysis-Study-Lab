@@ -463,3 +463,38 @@ canvas.chart { width: 100%; height: 380px; display: block; }
 .test-q.bad { border-left: 3px solid var(--red); }
 .test-block { margin: 8px 0; }
 .test-block pre.plain { white-space: pre-wrap; margin: 4px 0 0; }
+
+/* ------------------------------------------------------------------ Time Complexity Proofs */
+.proof-defn { font-size: .95rem; }
+.proof-text { white-space: pre-wrap; }
+.proof-table td, .proof-table th { font-family: var(--mono); font-size: .85rem; }
+.proof-steps { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.proof-step .plabel { display: block; margin-bottom: 6px; }
+.proof-step input.proof-ineq { width: 100%; max-width: 560px; font-family: var(--mono); }
+.proof-step textarea { width: 100%; min-height: 70px; }
+.step-mark { margin-left: 4px; }
+.proof-msgs { margin: 0; padding-left: 18px; }
+.proof-msgs li + li { margin-top: 6px; }
+.fb-block.proof-wrong { border-color: rgba(240, 113, 120, .45); }
+ol.worked { padding-left: 22px; line-height: 1.7; }
+ol.worked li { margin: 2px 0; }
+.proof-fill { font-family: var(--mono); font-size: 14px; background: #0b0e13; border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; overflow-x: auto; }
+.pf-line { white-space: pre; line-height: 2.2; }
+.pf-blank { font-family: var(--mono); width: 7ch; padding: 2px 6px; margin: 0 2px; }
+.pf-blank.right { border-color: var(--green); background: var(--green-soft); }
+.pf-blank.wrong { border-color: var(--red); background: var(--red-soft); }
+.theta-diagram { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 12px 0; font-size: .9rem; }
+.theta-diagram .td-f, .theta-diagram .td-theta { font-family: var(--mono); padding: 4px 14px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--surface-2); }
+.theta-diagram .td-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.theta-diagram .td-box { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 18px; border-radius: 9px; border: 1px solid; min-width: 170px; }
+.theta-diagram .td-box span { font-family: var(--mono); font-size: 1.05rem; }
+.theta-diagram .td-box small { color: var(--muted); font-family: var(--mono); }
+.theta-diagram .lower { border-color: var(--green); background: var(--green-soft); }
+.theta-diagram .upper { border-color: var(--amber); background: var(--amber-soft); }
+.sandbox-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.sandbox-row input[type=text] { min-width: 180px; font-family: var(--mono); }
+.chart-wrap { margin-top: 12px; }
+.legend.sw-legend span::before { background: var(--sw, transparent); }
+.legend span.nosq::before { display: none; }
+.prove-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+table.proof-table th { text-transform: none; letter-spacing: 0; }

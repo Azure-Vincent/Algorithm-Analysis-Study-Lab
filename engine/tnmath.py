@@ -11,6 +11,9 @@ A small hand-written tokenizer and recursive-descent parser accepts only:
 
 and builds SymPy objects directly from that tree, with limits on input length, token count,
 nesting depth, number size and exponent size so no input can make the server do unbounded work.
+
+growth=True (used by the Time Complexity Proofs section) additionally accepts the growth classes
+beyond polynomials:  2^n (a numeric base 2..10 raised to n),  n!  and  sqrt(n) / √n.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ MAX_DEGREE = 16          # caps the work done when expanding products like (n+1)
 
 BASE_VARS = ("n", "m", "k")
 FUNCS = {"log2": "log", "log": "log", "lg": "log"}
+GROWTH_FUNCS = {"sqrt": "sqrt"}
 LOG2 = sp.log(2)
 
 
@@ -40,7 +44,7 @@ def symbol(name):
     return sp.Symbol(name, positive=True)
 
 
-SYM = {v: symbol(v) for v in ("n", "m", "k", "i", "j", "t")}
+SYM = {v: symbol(v) for v in ("n", "m", "k", "i", "j", "t", "c", "c1", "c2")}
 
 
 def log2(x):
@@ -51,8 +55,8 @@ def log2(x):
 SUPERSCRIPTS = {"⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9"}
 REPLACE = [("×", "*"), ("·", "*"), ("∗", "*"), ("⋅", "*"), ("−", "-"), ("–", "-"), ("÷", "/"), ("⁄", "/"),
            ("log₂", "log2"), ("lg₂", "log2"), ("**", "^"), ("（", "("), ("）", ")"), ("{", "("), ("}", ")"),
-           ("[", "("), ("]", ")")]
-_TOKEN = re.compile(r"\s*(?:(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z_0-9]*)|(\^[⁰¹²³⁴⁵⁶⁷⁸⁹]+|[⁰¹²³⁴⁵⁶⁷⁸⁹]+)|([+\-*/^()=,]))")
+           ("[", "("), ("]", ")"), ("√", "sqrt")]
+_TOKEN = re.compile(r"\s*(?:(\d+(?:\.\d+)?)|([A-Za-z_][A-Za-z_0-9]*)|(\^[⁰¹²³⁴⁵⁶⁷⁸⁹]+|[⁰¹²³⁴⁵⁶⁷⁸⁹]+)|([+\-*/^()=,!]))")
 
 
 @dataclass
@@ -68,13 +72,14 @@ def _normalize(text):
     return s
 
 
-def tokenize(text, allowed_vars):
+def tokenize(text, allowed_vars, growth=False):
     s = _normalize(text)
     if not s:
         raise ParseError("Enter an expression.")
     if len(s) > MAX_LEN:
         raise ParseError(f"That expression is too long (maximum {MAX_LEN} characters).")
-    names = sorted(set(allowed_vars) | set(FUNCS), key=len, reverse=True)
+    funcs = set(FUNCS) | (set(GROWTH_FUNCS) if growth else set())
+    names = sorted(set(allowed_vars) | funcs, key=len, reverse=True)
     out, pos = [], 0
     while pos < len(s):
         m = _TOKEN.match(s, pos)
@@ -91,7 +96,7 @@ def tokenize(text, allowed_vars):
             out.append(Tok("op", "^"))
             out.append(Tok("num", "".join(SUPERSCRIPTS[c] for c in sup.lstrip("^"))))
         elif word is not None:
-            out.extend(_split_word(word, names, allowed_vars))
+            out.extend(_split_word(word, names, allowed_vars, funcs))
         else:
             out.append(Tok("op", op))
         if len(out) > MAX_TOKENS:
@@ -99,13 +104,13 @@ def tokenize(text, allowed_vars):
     return out
 
 
-def _split_word(word, names, allowed_vars):
+def _split_word(word, names, allowed_vars, funcs=FUNCS):
     """Split run-together names like 'nlogn' or 'nm' into known names."""
     toks, w = [], word
     while w:
         for name in names:
             if w.lower().startswith(name):
-                kind = "func" if name in FUNCS else "name"
+                kind = "func" if name in funcs else "name"
                 toks.append(Tok(kind, name))
                 w = w[len(name):]
                 break
@@ -121,16 +126,17 @@ def _split_word(word, names, allowed_vars):
 @dataclass
 class Node:
     """Minimal syntax tree kept alongside the SymPy value (used for the 'simplified form' check)."""
-    op: str                 # num, var, log, add, mul, div, pow, neg
+    op: str                 # num, var, log, add, mul, div, pow, neg (growth mode: fact, sqrt)
     kids: tuple = ()
     value: object = None
 
 
 class _Parser:
-    def __init__(self, toks):
+    def __init__(self, toks, growth=False):
         self.toks = toks
         self.i = 0
         self.depth = 0
+        self.growth = growth
 
     def peek(self):
         return self.toks[self.i] if self.i < len(self.toks) else None
@@ -190,6 +196,10 @@ class _Parser:
     def power(self):
         base = self.atom()
         t = self.peek()
+        if self.growth and t and t.kind == "op" and t.value == "!":     # n!
+            self.take()
+            base = Node("fact", (base,))
+            t = self.peek()
         if t and t.kind == "op" and t.value == "^":
             self.take()
             self.deeper()
@@ -216,8 +226,8 @@ class _Parser:
             elif nxt is not None and nxt.kind in ("name", "num"):
                 arg = self.atom()                              # log n
             else:
-                raise ParseError("log needs an argument, e.g. log(n).")
-            return Node("log", (arg,))
+                raise ParseError(f"{t.value} needs an argument, e.g. {t.value}(n).")
+            return Node("sqrt" if t.value == "sqrt" else "log", (arg,))
         if t.value == "(":
             self.take()
             self.deeper()
@@ -228,33 +238,45 @@ class _Parser:
         raise ParseError(f"Unexpected '{t.value}'.")
 
 
-def _to_sympy(node):
+def _to_sympy(node, growth=False):
     op = node.op
+    if op == "fact":
+        arg = _to_sympy(node.kids[0], growth)
+        if arg != SYM["n"]:
+            raise ParseError("Factorial is only supported as n!.")
+        return sp.factorial(arg)
+    if op == "sqrt":
+        arg = _to_sympy(node.kids[0], growth)
+        if arg.is_number and arg < 0:
+            raise ParseError("sqrt needs a non-negative argument.")
+        return sp.sqrt(arg)
     if op == "num":
         return sp.Rational(Fraction(node.value))
     if op == "var":
         return SYM[node.value]
     if op == "neg":
-        return -_to_sympy(node.kids[0])
+        return -_to_sympy(node.kids[0], growth)
     if op == "add":
-        return _to_sympy(node.kids[0]) + _to_sympy(node.kids[1])
+        return _to_sympy(node.kids[0], growth) + _to_sympy(node.kids[1], growth)
     if op == "mul":
-        return _to_sympy(node.kids[0]) * _to_sympy(node.kids[1])
+        return _to_sympy(node.kids[0], growth) * _to_sympy(node.kids[1], growth)
     if op == "div":
-        d = _to_sympy(node.kids[1])
+        d = _to_sympy(node.kids[1], growth)
         if d == 0:
             raise ParseError("Division by zero.")
-        return _to_sympy(node.kids[0]) / d
+        return _to_sympy(node.kids[0], growth) / d
     if op == "log":
-        arg = _to_sympy(node.kids[0])
+        arg = _to_sympy(node.kids[0], growth)
         if arg.is_number and arg <= 0:
             raise ParseError("log needs a positive argument.")
         return log2(arg)
     if op == "pow":
-        base = _to_sympy(node.kids[0])
-        exp = _to_sympy(node.kids[1])
+        base = _to_sympy(node.kids[0], growth)
+        exp = _to_sympy(node.kids[1], growth)
         if not exp.is_number:
-            raise ParseError("Exponents must be numbers (like n^2), not variables.")
+            if growth and base.is_number and 2 <= base <= 10 and exp == SYM["n"]:
+                return base ** exp                                     # exponential growth: 2^n
+            raise ParseError("Exponents must be numbers (like n^2)" + (", or 2^n" if growth else ", not variables") + ".")
         if abs(exp) > MAX_EXPONENT:
             raise ParseError(f"Exponents larger than {MAX_EXPONENT} aren't supported here.")
         if base.is_number and abs(base) > 10 ** 6 and exp > 1:
@@ -283,7 +305,7 @@ def _degree_bound(node):
     op = node.op
     if op == "num":
         return 0
-    if op in ("var", "log"):
+    if op in ("var", "log", "fact", "sqrt"):
         return 1
     if op == "neg":
         return _degree_bound(node.kids[0])
@@ -323,7 +345,7 @@ def strip_wrapper(text):
     return inner, kind
 
 
-def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False):
+def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False, growth=False):
     """Parse untrusted text into a SymPy expression. Raises ParseError with a friendly message."""
     if not isinstance(text, str):
         raise ParseError("Enter an expression.")
@@ -336,11 +358,11 @@ def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False):
         text = inner
     elif "=" in text:
         raise ParseError("Write just the expression, e.g. 3n + 4 (or T(n) = 3n + 4).")
-    toks = tokenize(text, allowed_vars)
-    tree = _Parser(toks).parse()
+    toks = tokenize(text, allowed_vars, growth)
+    tree = _Parser(toks, growth).parse()
     if _degree_bound(tree) > MAX_DEGREE:
         raise ParseError("That expression is too complex - T(n) functions here have small powers.")
-    expr = sp.expand(_to_sympy(tree))
+    expr = sp.expand(_to_sympy(tree, growth))
     if expr.has(sp.zoo, sp.oo, sp.nan):
         raise ParseError("That expression isn't defined.")
     if wrapper and not allow_wrapper:

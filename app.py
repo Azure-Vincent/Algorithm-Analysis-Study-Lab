@@ -18,9 +18,9 @@ from werkzeug.exceptions import HTTPException
 import config
 import db
 import profile as local_profile
-from engine import generator, grading, stats, tn, tnmath
-from engine.catalog import (COMPLEXITY_TOPICS, COMPLEXITY_TYPES, LEVELS, PSEUDO_TOPICS, PSEUDO_TYPES,
-                            SESSION_TOPICS, TN_LEVELS, TN_TOPICS, TOPICS, TRACK_LABELS, TYPES)
+from engine import generator, grading, proofs, stats, tn, tnmath
+from engine.catalog import (COMPLEXITY_TOPICS, COMPLEXITY_TYPES, LEVELS, PROOF_LEVELS, PROOF_TOPICS, PROOF_TYPES,
+                            PSEUDO_TOPICS, PSEUDO_TYPES, SESSION_TOPICS, TN_LEVELS, TN_TOPICS, TOPICS, TRACK_LABELS, TYPES)
 
 ANALYSIS_METHOD = [
     "Identify the basic operations.",
@@ -39,6 +39,18 @@ PSEUDO_METHOD = [
     "Trace the algorithm with a small example.",
     "Analyze its complexity.",
 ]
+
+
+PROOF_METHOD = [
+    "Decide whether the claim is true. Intuition (a table, a graph, 'grows slower') can guide you - it is not a proof.",
+    "Write the inequality the definition requires (f(n) ≤ c·g(n) for O, c·g(n) ≤ f(n) for Ω, both for Θ).",
+    "Choose c > 0 - any valid value, not necessarily the smallest.",
+    "Choose n₀ > 0 so the inequality holds for EVERY n ≥ n₀, not just on a finite range.",
+    "Justify the inequality algebraically for all n ≥ n₀.",
+    "For a false claim, show that no fixed c can work (e.g. f(n)/g(n) grows without bound).",
+]
+PROOF_KINDS = {"proof", "proof_fill"}                 # graded by engine.proofs
+PROOF_PARTS = {"proof_debug", "proof_limit"}          # multiple-choice parts, graded by engine.grading
 
 
 def _dev_secret_key():
@@ -70,10 +82,11 @@ SESSION_MODES = {"practice", "adaptive", "review", "test"}
 # Header: only the basic functions. Learn and Practice group their pages under a second row of tabs.
 NAV = [("/", "Dashboard"), ("/learn", "Learn"), ("/practice", "Practice"), ("/review", "Review"), ("/progress", "Progress")]
 SUBNAV = {
-    "/learn": [("/learn", "Big O & pseudocode"), ("/learn/tn", "T(n) analysis"), ("/visualizer", "Growth visualizer"),
-               ("/compare", "Compare algorithms")],
+    "/learn": [("/learn", "Big O & pseudocode"), ("/learn/tn", "T(n) analysis"), ("/learn/proofs", "Complexity proofs"),
+               ("/visualizer", "Growth visualizer"), ("/compare", "Compare algorithms")],
     "/practice": [("/practice", "Practice tests"), ("/complexity", "Complexity"), ("/tn", "T(n) Analysis"),
-                  ("/pseudocode", "Pseudocode Lab"), ("/adaptive", "Adaptive"), ("/generator", "Generator")],
+                  ("/pseudocode", "Pseudocode Lab"), ("/proofs", "Proofs"), ("/proofs/sandbox", "Proof sandbox"),
+                  ("/adaptive", "Adaptive"), ("/generator", "Generator")],
 }
 SECTION_OF = {href: section for section, items in SUBNAV.items() for href, _ in items}
 SECTION_OF["/tn/reference"] = "/learn"
@@ -154,6 +167,7 @@ def create_app(db_path=None, env=None):
                 "COMPLEXITY_TOPICS": COMPLEXITY_TOPICS, "PSEUDO_TOPICS": PSEUDO_TOPICS,
                 "TN_TOPICS": TN_TOPICS, "TN_LEVELS": TN_LEVELS, "TN_MODEL": tn.MODEL_RULES, "TRACK_LABELS": TRACK_LABELS,
                 "FAMILIES": generator.FAMILIES, "NAV": NAV, "SUBNAV": SUBNAV,
+                "PROOF_TOPICS": PROOF_TOPICS, "PROOF_LEVELS": PROOF_LEVELS, "PROOF_TYPES": PROOF_TYPES,
                 "NAV_SECTION": nav_section(request.path)}
 
     # ------------------------------------------------------------------ pages
@@ -192,7 +206,21 @@ def create_app(db_path=None, env=None):
                                context=ctx if ctx in CONTEXTS else "free",
                                back=({"complexity": ("/complexity", "Complexity Practice"),
                                       "pseudocode": ("/pseudocode", "Pseudocode Lab"),
-                                      "tn": ("/tn", "T(n) Analysis")}).get(ex["track"], ("/", "Dashboard")))
+                                      "tn": ("/tn", "T(n) Analysis"),
+                                      "proofs": ("/proofs", "Proofs")}).get(ex["track"], ("/", "Dashboard")))
+
+    @app.route("/proofs")
+    def proofs_page():
+        return render_template("browse.html", track="proofs", types=PROOF_TYPES, topics=PROOF_TOPICS,
+                               heading="Complexity Proofs", levels=PROOF_LEVELS, mastery=stats.proof_mastery())
+
+    @app.route("/proofs/sandbox")
+    def proof_sandbox_page():
+        return render_template("proof_sandbox.html")
+
+    @app.route("/learn/proofs")
+    def proofs_learn_page():
+        return render_template("proofs_learn.html")
 
     @app.route("/practice")
     def practice_page():
@@ -209,7 +237,7 @@ def create_app(db_path=None, env=None):
     @app.route("/progress")
     def progress_page():
         return render_template("progress.html", ts=stats.track_stats(), topics=stats.topic_stats(), tnst=stats.tn_stats(),
-                               types=stats.type_stats(), sessions=db.recent_sessions(12),
+                               types=stats.type_stats(), sessions=db.recent_sessions(12), proof_mastery=stats.proof_mastery(),
                                mistakes=db.list_mistakes())
 
     @app.route("/learn")
@@ -258,10 +286,16 @@ def create_app(db_path=None, env=None):
             view.update(tn.public_view(ex))
             view["level_label"] = TN_LEVELS.get(ex["level"], "")
             view["method"] = TN_METHOD
+            view["provable"] = proofs.tn_provable(ex)
+        elif ex["type"] in PROOF_KINDS:
+            view = proofs.public_view(ex)
+            view["level_label"] = PROOF_LEVELS.get(ex["level"], "")
+            view["method"] = PROOF_METHOD
         else:
             view = grading.public_view(ex)
-            view["level_label"] = LEVELS.get(ex["level"], "")
-            view["method"] = ANALYSIS_METHOD if ex["track"] == "complexity" or ex["type"] == "to_complexity" else PSEUDO_METHOD
+            view["level_label"] = (PROOF_LEVELS if ex["track"] == "proofs" else LEVELS).get(ex["level"], "")
+            view["method"] = (PROOF_METHOD if ex["track"] == "proofs" else
+                              ANALYSIS_METHOD if ex["track"] == "complexity" or ex["type"] == "to_complexity" else PSEUDO_METHOD)
         view["type_label"] = TYPES.get(ex["type"], ex["type"])
         view["topic_label"] = TOPICS.get(ex["topic"], ex["topic"])
         if ex["type"] == "to_complexity":
@@ -321,6 +355,10 @@ def create_app(db_path=None, env=None):
         return jsonify(res)
 
     def _question_text(ex):
+        if ex["track"] == "proofs":
+            claim = proofs.claim_text(ex) if ex["type"] == "proof" else ex.get("claim", "")
+            body = ex.get("proof_text") or ex.get("template") or ""
+            return f"{ex['title']}\n{ex.get('prompt', '')}\n\n{claim}\n{body}".strip()
         if ex["type"] == "tn":
             return f"{ex['title']}\n{ex.get('assumptions') or ''}\n\n{ex['code']}".strip()
         code = ex.get("code") or ex.get("template") or ex.get("buggy") or ""
@@ -335,6 +373,8 @@ def create_app(db_path=None, env=None):
     def _explanation(ex):
         if ex["type"] == "tn":
             return tn.explanation_text(ex)
+        if ex["type"] in PROOF_KINDS:
+            return proofs.explanation_text(ex)
         return "\n".join(ex.get("steps", []))
 
     @app.post("/api/exercise/<ex_id>/submit")
@@ -345,9 +385,21 @@ def create_app(db_path=None, env=None):
         if not isinstance(answer, dict):
             abort(400, description="answer must be an object")
         try:
-            result = tn.grade(ex, answer) if ex["type"] == "tn" else grading.grade(ex, answer)
+            if ex["type"] == "tn":
+                result = tn.grade(ex, answer)
+            elif ex["type"] == "proof":
+                result = proofs.grade_proof(ex, answer)
+            elif ex["type"] == "proof_fill":
+                result = proofs.grade_fill(ex, answer)
+            else:
+                result = grading.grade(ex, answer)
         except (TypeError, ValueError, AttributeError, KeyError, IndexError):
             abort(400, description="That answer couldn't be read. Please check every field and try again.")
+        if ex["type"] in PROOF_KINDS:
+            result["solution"] = proofs.solution_payload(ex)
+        if ex["type"] in PROOF_PARTS:
+            result["skills"] = proofs.parts_skills(ex, result)
+            result["category"] = None if result["correct"] else ("proof_debug" if ex["type"] == "proof_debug" else "limits")
         parts = {"t": result["t_correct"], "theta": result["theta_correct"]} if ex["type"] == "tn" else None
         instance = _ident(body.get("instance_id")) or str(uuid.uuid4())
         hints_used = _int(body.get("hints_used"), 0, 0, 20)
@@ -357,6 +409,9 @@ def create_app(db_path=None, env=None):
         rec = db.record_submission(instance, ex, _ident(body.get("session_id")), context, result["correct"],
                                    hints_used, result.get("answer_text", ""), result.get("correct_text", ""),
                                    _explanation(ex), _question_text(ex), parts=parts, category=result.get("category"))
+        skills = result.pop("skills", None)
+        if skills:
+            db.record_proof_skills(instance, ex["id"], skills)
         result["attempt_no"] = rec["attempt_no"]
         result["instance_id"] = instance
         if result["correct"] and ex["type"] in ("write", "complete", "debug"):
@@ -368,7 +423,7 @@ def create_app(db_path=None, env=None):
         if ex["type"] == "tn" and result["correct"]:
             result["solution"] = tn.solution_payload(ex)
         # retry-style exercises keep the full solution hidden until correct or explicitly revealed
-        locks = ex["track"] == "complexity" or ex["type"] in ("to_complexity", "trace")
+        locks = ex["track"] == "complexity" or ex["type"] in ("to_complexity", "trace") or ex["type"] in PROOF_PARTS
         result["locked"] = bool(locks or result["correct"])
         if not result["locked"]:
             result.pop("solution", None)
@@ -383,10 +438,11 @@ def create_app(db_path=None, env=None):
         body = _body()
         instance = _ident(body.get("instance_id")) or str(uuid.uuid4())
         context = body.get("context") if body.get("context") in CONTEXTS else "free"
-        is_tn = ex["type"] == "tn"
+        is_tn, is_proof = ex["type"] == "tn", ex["type"] in PROOF_KINDS
+        mod = tn if is_tn else (proofs if is_proof else grading)
         db.record_reveal(instance, ex, _ident(body.get("session_id")), context, _int(body.get("hints_used"), 0, 0, 20),
-                         "", tn.correct_text(ex) if is_tn else grading.correct_text(ex), _explanation(ex), _question_text(ex))
-        return jsonify({"solution": tn.solution_payload(ex) if is_tn else grading.solution_payload(ex), "instance_id": instance})
+                         "", mod.correct_text(ex), _explanation(ex), _question_text(ex))
+        return jsonify({"solution": mod.solution_payload(ex), "instance_id": instance})
 
     @app.get("/api/mistakes")
     def api_mistakes():
@@ -394,7 +450,8 @@ def create_app(db_path=None, env=None):
         for r in rows:
             r["topic_label"] = TOPICS.get(r["topic"], r["topic"])
             r["type_label"] = TYPES.get(r["type"], r["type"])
-            r["category_label"] = tn.category_label(r.get("category"))
+            r["category_label"] = (proofs.category_label(r.get("category")) if r.get("track") == "proofs"
+                                   else tn.category_label(r.get("category")))
         return jsonify(rows)
 
     @app.get("/api/mistakes/<ex_id>")
@@ -472,7 +529,7 @@ def create_app(db_path=None, env=None):
                         "topic_label": TOPICS.get(ex["topic"], ex["topic"]), "type_label": TYPES.get(ex["type"], ex["type"]),
                         "answered": answered, "correct": bool(answered and q["correct"]),
                         "your_answer": answers.get(q["instance_id"], "") if answered else "",
-                        "correct_answer": tn.correct_text(ex) if ex["type"] == "tn" else grading.correct_text(ex),
+                        "correct_answer": (tn if ex["type"] == "tn" else proofs if ex["type"] in PROOF_KINDS else grading).correct_text(ex),
                         "explanation": _explanation(ex)})
         return out
 
@@ -506,6 +563,39 @@ def create_app(db_path=None, env=None):
         ex = generator.generate(family, seed)
         stored = stats.store_generated(ex)
         return jsonify({"id": stored["id"], "seed": ex["seed"], "family": ex["family"]})
+
+    # ------------------------------------------------------------------ API: proofs
+    def _proof_error(e):
+        return jsonify({"ok": False, "error": str(e)})
+
+    @app.post("/api/proofs/investigate")
+    def api_proof_investigate():
+        """Proof sandbox + visual inequality checker. f, g and constants go through the safe parser only."""
+        body = _body()
+        rel = body.get("rel") if body.get("rel") in proofs.REL_SYMBOL else "O"
+        consts = body.get("consts") if isinstance(body.get("consts"), dict) else None
+        if consts:
+            consts = {k: str(v)[:40] for k, v in consts.items() if k in ("c", "c1", "c2", "n0")}
+        try:
+            out = proofs.investigate(str(body.get("f", ""))[:200], str(body.get("g", ""))[:200], rel, consts,
+                                     _int(body.get("nmax"), 40, 5, 200))
+        except tnmath.ParseError as e:
+            return _proof_error(e)
+        out["ok"] = True
+        return jsonify(out)
+
+    @app.post("/api/proofs/from_tn/<ex_id>")
+    def api_proof_from_tn(ex_id):
+        """'Prove its complexity': turn a T(n) exercise into a Θ proof exercise (stored like generated challenges)."""
+        ex = _ex_or_404(ex_id)
+        if ex["type"] != "tn" or not proofs.tn_provable(ex):
+            abort(400, description="This T(n) exercise has no single T(n) to prove.")
+        try:
+            pex = proofs.from_tn(ex)
+        except tnmath.ParseError as e:
+            abort(400, description=str(e))
+        stored = stats.store_generated(pex)
+        return jsonify({"id": stored["id"]})
 
     @app.post("/api/reset")
     def api_reset():

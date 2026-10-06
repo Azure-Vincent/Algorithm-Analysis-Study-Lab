@@ -30,7 +30,7 @@ def _agg(qs):
 
 def track_stats():
     out = {}
-    for track in ("complexity", "pseudocode", "tn"):
+    for track in ("complexity", "pseudocode", "tn", "proofs"):
         qs = db.answered_questions(track)
         total = len(db.list_exercises(track=track))
         seen = len({q["exercise_id"] for q in qs})
@@ -108,6 +108,22 @@ def tn_stats():
     return {"overall": overall, "by_topic": by_topic, "by_difficulty": by_diff}
 
 
+def proof_mastery():
+    """Mastery per proof skill (Big O / Ω / Θ proofs, selecting c and n₀, polynomial bounds, growth comparisons,
+    disproving bounds): first-try accuracy, smoothed like adaptive practice so a single answer doesn't read as 0 % or 100 %."""
+    from engine.proofs import SKILLS
+    rows = {r["skill"]: r for r in db.proof_skill_rows()}
+    out = []
+    for key, label in SKILLS.items():
+        r = rows.get(key, {"answered": 0, "first_correct": 0, "correct": 0})
+        n, first = r["answered"] or 0, r["first_correct"] or 0
+        out.append({"skill": key, "label": label, "answered": n,
+                    "accuracy": round(100 * first / n) if n else None,
+                    "mastery": round(100 * (first + PRIOR_ACC * PRIOR_N) / (n + PRIOR_N)) if n else None,
+                    "eventual": round(100 * (r["correct"] or 0) / n) if n else None})
+    return out
+
+
 def topic_accuracy_map():
     """Smoothed first-try accuracy per topic, used by adaptive practice."""
     groups = defaultdict(lambda: [0, 0])
@@ -164,6 +180,8 @@ def matches_topic(ex_row, topic):
         return ex_row["track"] == "pseudocode"
     if topic == "tn":
         return ex_row["track"] == "tn"
+    if topic == "proofs":
+        return ex_row["track"] == "proofs"
     return topic in ex_row["tags"]
 
 
