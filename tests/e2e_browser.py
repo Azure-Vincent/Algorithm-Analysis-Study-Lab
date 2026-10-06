@@ -251,6 +251,26 @@ with tempfile.TemporaryDirectory() as tmp:
             page.click("button:has-text('Prove its complexity')")
             page.wait_for_selector(".theta-diagram")
             check("pf-tn-tn2-sum" in page.url, "T(n) exercise leads to a Θ proof of its T(n)")
+
+            # 7c. mock exam: balanced, navigable, answers kept, graded by category after submission
+            page.goto(BASE + "/mock")
+            page.click("#mock-count button[data-v='4']")
+            page.click("#mock-start")
+            page.wait_for_selector(".mock-q")
+            check(page.locator(".mock-nav-btn").count() == 4 and "Question 1 of 4" in page.inner_text(".mock-q"),
+                  "mock exam generated with the chosen number of questions")
+            page.locator(".mock-q textarea.scratch").first.fill("for n > 1: each term <= coefficient * n^2")
+            page.click("button:has-text('Flag for review')")
+            page.click("button:has-text('Next →')")
+            page.click("button:has-text('← Previous')")
+            check("each term" in page.locator(".mock-q textarea.scratch").first.input_value() and
+                  page.locator(".mock-nav-btn.flagged").count() == 1, "mock exam keeps work and flags while navigating")
+            check("Model solution" not in page.inner_text("main"), "no answers shown while the exam is active")
+            page.click(".mock-nav button:has-text('Submit exam')")
+            page.wait_for_selector(".mock-big", timeout=60000)
+            res = page.inner_text("main")
+            check(all(c in res for c in ("Asymptotic Analysis", "Pseudocode Analysis", "Algorithm Design", "Discrete Mathematics"))
+                  and "Model solution" in res, "mock exam results by category with model solutions")
             browser.close()
 
         # 8. restart the server: progress persists

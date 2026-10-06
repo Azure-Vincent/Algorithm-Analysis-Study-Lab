@@ -25,6 +25,17 @@
 {% endfor %}
 </div>
 
+<div class="card pad-lg" style="margin-top:16px" id="mock-progress">
+  <h3>Mock exams</h3>
+  {% set done = mock_exams|selectattr('submitted_at')|list %}
+  {% if done %}
+  <table class="data"><tr><th>Date</th><th class="num">Questions</th><th class="num">Overall</th>{% for c in done[0].categories %}<th class="num">{{ c.label }}</th>{% endfor %}<th></th></tr>
+    {% for m in done %}<tr><td class="muted" style="font-size:.88rem">{{ m.created_at[:16].replace('T', ' ') }}</td><td class="num">{{ m.count }}</td><td class="num"><b>{{ m.score }}%</b></td>
+      {% for c in m.categories %}<td class="num">{{ c.percent }}%</td>{% endfor %}<td><a href="/mock/{{ m.id }}">Review →</a></td></tr>{% endfor %}
+  </table>
+  {% else %}<div class="empty">No submitted mock exams yet. <a href="/mock">Take one →</a></div>{% endif %}
+</div>
+
 <div class="card pad-lg" style="margin-top:16px" id="proof-progress">
   <h3>Complexity proofs - mastery by skill</h3>
   <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per skill, smoothed while there are only a few answers. Weak proof skills feed into <a href="/adaptive">Adaptive practice</a> through their topics.</p>

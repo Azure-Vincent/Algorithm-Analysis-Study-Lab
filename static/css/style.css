@@ -498,3 +498,30 @@ ol.worked li { margin: 2px 0; }
 .legend span.nosq::before { display: none; }
 .prove-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 table.proof-table th { text-transform: none; letter-spacing: 0; }
+
+/* ------------------------------------------------------------------ Mock exam */
+.mock-layout { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+.mock-nav { flex: 1 1 200px; max-width: 240px; position: sticky; top: 74px; padding: 14px; }
+.mock-main { flex: 999 1 560px; min-width: 0; }
+.mock-nav-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.mock-nav-btn { min-height: 40px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--muted);
+  font: inherit; font-weight: 600; cursor: pointer; position: relative; }
+.mock-nav-btn.answered { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.mock-nav-btn.flagged::after { content: "⚑"; position: absolute; top: -6px; right: -4px; font-size: .8rem; color: var(--red); }
+.mock-nav-btn.current { outline: 2px solid var(--accent); outline-offset: 1px; color: var(--text); }
+.mock-legend { font-size: .78rem; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mock-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.mock-legend .sw.answered { background: var(--accent-soft); border: 1px solid var(--accent); }
+.mock-legend .sw.flagged { background: var(--red-soft); border: 1px solid var(--red); }
+.mock-q-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 4px; }
+.mock-q-num { font-weight: 600; color: var(--muted); }
+.mock-text { white-space: pre-wrap; line-height: 1.6; }
+.mock-fields { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.mock-field .plabel { display: block; margin-bottom: 6px; }
+.mock-field textarea { width: 100%; min-height: 110px; }
+.mock-input { width: 100%; max-width: 560px; font-family: var(--mono); }
+.btn.flag-on { border-color: var(--red); color: var(--red); }
+.mock-big { font-size: 3rem; font-weight: 700; line-height: 1.1; }
+.mock-model { white-space: pre-wrap; }
+.mock-rubric td:last-child { color: var(--muted); font-size: .88rem; }
+@media (max-width: 760px) { .mock-nav { position: static; max-width: none; } }

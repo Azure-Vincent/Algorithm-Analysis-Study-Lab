@@ -509,3 +509,12 @@ def simulate(blocks, env):
         else:
             total += _sim_chain(b["loops"], env)
     return total
+
+
+# ---------------------------------------------------------------------------- mock exams
+def mock_exam(count=12, seed=None):
+    """A full mock exam (asymptotic proofs, pseudocode analysis, algorithm design, discrete math).
+    The question families live in engine/mockexam.py; loop-analysis questions there are validated the
+    same way as the challenges above - by actually counting the operations."""
+    from engine import mockexam
+    return mockexam.build_exam(count, seed)

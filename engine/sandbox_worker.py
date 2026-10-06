@@ -28,7 +28,7 @@ def apply_limits():
 def main():
     apply_limits()
     job = json.loads(sys.stdin.buffer.read().decode("utf-8"))
-    result = run_tests(job["src"], job["tests"], job.get("entry"), job.get("params"))
+    result = run_tests(job["src"], job["tests"], job.get("entry"), job.get("params"), bool(job.get("one_indexed")))
     sys.stdout.write(json.dumps(result))
 
 

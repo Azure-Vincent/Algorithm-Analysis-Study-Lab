@@ -18,7 +18,7 @@ from werkzeug.exceptions import HTTPException
 import config
 import db
 import profile as local_profile
-from engine import generator, grading, proofs, stats, tn, tnmath
+from engine import generator, grading, mockexam, proofs, stats, tn, tnmath
 from engine.catalog import (COMPLEXITY_TOPICS, COMPLEXITY_TYPES, LEVELS, PROOF_LEVELS, PROOF_TOPICS, PROOF_TYPES,
                             PSEUDO_TOPICS, PSEUDO_TYPES, SESSION_TOPICS, TN_LEVELS, TN_TOPICS, TOPICS, TRACK_LABELS, TYPES)
 
@@ -86,7 +86,7 @@ SUBNAV = {
                ("/visualizer", "Growth visualizer"), ("/compare", "Compare algorithms")],
     "/practice": [("/practice", "Practice tests"), ("/complexity", "Complexity"), ("/tn", "T(n) Analysis"),
                   ("/pseudocode", "Pseudocode Lab"), ("/proofs", "Proofs"), ("/proofs/sandbox", "Proof sandbox"),
-                  ("/adaptive", "Adaptive"), ("/generator", "Generator")],
+                  ("/mock", "Mock exam"), ("/adaptive", "Adaptive"), ("/generator", "Generator")],
 }
 SECTION_OF = {href: section for section, items in SUBNAV.items() for href, _ in items}
 SECTION_OF["/tn/reference"] = "/learn"
@@ -94,7 +94,7 @@ SECTION_OF["/tn/reference"] = "/learn"
 
 def nav_section(path):
     """Which main tab a page belongs to (exercise pages count as Practice)."""
-    if path.startswith("/exercise/"):
+    if path.startswith(("/exercise/", "/mock/")):
         return "/practice"
     return SECTION_OF.get(path.rstrip("/") or "/", path if path in dict(NAV) else None)
 DIFFICULTIES = {"beginner", "intermediate", "advanced", "mixed"}
@@ -222,6 +222,13 @@ def create_app(db_path=None, env=None):
     def proofs_learn_page():
         return render_template("proofs_learn.html")
 
+    @app.route("/mock")
+    @app.route("/mock/<exam_id>")
+    def mock_page(exam_id=None):
+        if exam_id is not None and not (_ident(exam_id) and db.get_mock_exam(exam_id)):
+            abort(404, description="mock exam not found")
+        return render_template("mock.html", exam_id=exam_id, history=db.list_mock_exams(10), categories=mockexam.CATEGORIES)
+
     @app.route("/practice")
     def practice_page():
         return render_template("practice.html", mode="test")
@@ -238,6 +245,7 @@ def create_app(db_path=None, env=None):
     def progress_page():
         return render_template("progress.html", ts=stats.track_stats(), topics=stats.topic_stats(), tnst=stats.tn_stats(),
                                types=stats.type_stats(), sessions=db.recent_sessions(12), proof_mastery=stats.proof_mastery(),
+                               mock_exams=db.list_mock_exams(10),
                                mistakes=db.list_mistakes())
 
     @app.route("/learn")
@@ -596,6 +604,62 @@ def create_app(db_path=None, env=None):
             abort(400, description=str(e))
         stored = stats.store_generated(pex)
         return jsonify({"id": stored["id"]})
+
+    # ------------------------------------------------------------------ API: mock exams
+    def _mock_or_404(exam_id):
+        ex = db.get_mock_exam(exam_id) if _ident(exam_id) else None
+        if not ex:
+            abort(404, description="mock exam not found")
+        return ex
+
+    def _mock_view(ex):
+        view = {"id": ex["id"], "count": ex["count"], "created_at": ex["created_at"], "submitted": bool(ex["submitted_at"]),
+                "questions": [mockexam.public_question(q) for q in ex["questions"]], "answers": ex["answers"],
+                "flags": ex["flags"], "categories": mockexam.CATEGORIES}
+        if ex["submitted_at"]:
+            view["results"] = ex["results"]                   # answers and model solutions only after submission
+        return view
+
+    @app.post("/api/mock")
+    def api_mock_create():
+        body = _body()
+        exam = generator.mock_exam(_int(body.get("count"), 12, 4, 24))
+        exam_id = uuid.uuid4().hex
+        db.create_mock_exam(exam_id, exam)
+        return jsonify({"id": exam_id})
+
+    @app.get("/api/mock")
+    def api_mock_list():
+        return jsonify(db.list_mock_exams(20))
+
+    @app.get("/api/mock/<exam_id>")
+    def api_mock_get(exam_id):
+        return jsonify(_mock_view(_mock_or_404(exam_id)))
+
+    @app.post("/api/mock/<exam_id>/answer")
+    def api_mock_answer(exam_id):
+        ex = _mock_or_404(exam_id)
+        body = _body()
+        qid = body.get("qid")
+        if qid not in {q["qid"] for q in ex["questions"]}:
+            abort(400, description="unknown question")
+        answer = body.get("answer")
+        if answer is not None:
+            if not isinstance(answer, dict) or len(answer) > 12:
+                abort(400, description="answer must be an object")
+            answer = {str(k)[:20]: str(v)[:8000] for k, v in answer.items() if isinstance(v, (str, int, float))}
+        flagged = body.get("flagged") if isinstance(body.get("flagged"), bool) else None
+        if not db.save_mock_answer(exam_id, qid, answer, flagged):
+            abort(400, description="This exam has already been submitted.")
+        return jsonify({"ok": True})
+
+    @app.post("/api/mock/<exam_id>/submit")
+    def api_mock_submit(exam_id):
+        ex = _mock_or_404(exam_id)
+        if not ex["submitted_at"]:
+            results = mockexam.grade_exam({"questions": ex["questions"]}, ex["answers"])
+            db.finish_mock_exam(exam_id, results)
+        return jsonify(_mock_view(_mock_or_404(exam_id)))
 
     @app.post("/api/reset")
     def api_reset():

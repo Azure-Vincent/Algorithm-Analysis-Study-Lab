@@ -26,9 +26,9 @@ def _failure(tests, msg):
     return {"runnable": False, "error": msg, "error_line": None, "passed": 0, "total": len(tests), "results": []}
 
 
-def run_tests(src, tests, entry=None, params=None):
+def run_tests(src, tests, entry=None, params=None, one_indexed=False):
     """Same contract as engine.pseudo.run_tests, executed out of process."""
-    payload = json.dumps({"src": src, "tests": tests, "entry": entry, "params": params})
+    payload = json.dumps({"src": src, "tests": tests, "entry": entry, "params": params, "one_indexed": bool(one_indexed)})
     env = {"PYTHONPATH": PROJECT, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8",
            "PATH": os.environ.get("PATH", "")}
     if os.name == "nt":                               # Windows needs SYSTEMROOT to start Python

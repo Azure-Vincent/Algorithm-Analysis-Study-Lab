@@ -18,7 +18,7 @@ from datetime import datetime
 SEED_VERSION = "2026.10.6"
 SCHEMA_VERSION = 4
 MASTERY_STREAK = 3
-PROGRESS_TABLES = ("questions", "attempts", "mistakes", "sessions", "user_solutions", "proof_skills")
+PROGRESS_TABLES = ("questions", "attempts", "mistakes", "sessions", "user_solutions", "proof_skills", "mock_exams")
 _PROJECT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATH = os.path.join(_PROJECT, "instance", "trainer.db")
 LOCAL_EMAIL = "local@localhost"
@@ -146,6 +146,11 @@ CREATE TABLE IF NOT EXISTS proof_skills (
     UNIQUE (user_id, instance_id, skill)
 );
 CREATE INDEX IF NOT EXISTS idx_ps_user ON proof_skills(user_id, skill);
+CREATE TABLE IF NOT EXISTS mock_exams (
+    id TEXT PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, seed INTEGER, count INTEGER,
+    questions TEXT, answers TEXT, flags TEXT, results TEXT, score REAL, created_at TEXT, submitted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_mock_user ON mock_exams(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_q_user ON questions(user_id, exercise_id);
 CREATE INDEX IF NOT EXISTS idx_q_sess ON questions(session_id);
 CREATE INDEX IF NOT EXISTS idx_a_user ON attempts(user_id, exercise_id);
@@ -477,6 +482,60 @@ def proof_skill_rows():
     return [dict(r) for r in conn().execute(
         "SELECT skill, COUNT(*) AS answered, SUM(first_correct) AS first_correct, SUM(correct) AS correct "
         "FROM proof_skills WHERE user_id=? GROUP BY skill", (uid(),))]
+
+
+# ============================================================================ mock exams
+def create_mock_exam(exam_id, exam):
+    c = conn()
+    with c:
+        c.execute("INSERT INTO mock_exams(id, user_id, seed, count, questions, answers, flags, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                  (exam_id, uid(), exam["seed"], exam["count"], json.dumps(exam["questions"], ensure_ascii=False), "{}", "[]", now()))
+
+
+def get_mock_exam(exam_id):
+    r = conn().execute("SELECT * FROM mock_exams WHERE id=? AND user_id=?", (exam_id, uid())).fetchone()
+    if not r:
+        return None
+    d = dict(r)
+    for k, default in (("questions", "[]"), ("answers", "{}"), ("flags", "[]"), ("results", "null")):
+        d[k] = json.loads(d[k] or default)
+    return d
+
+
+def save_mock_answer(exam_id, qid, answer, flagged):
+    """Store one answer (and the review flag) while the exam is still open. Returns False once submitted."""
+    c = conn()
+    with c:
+        r = c.execute("SELECT answers, flags, submitted_at FROM mock_exams WHERE id=? AND user_id=?", (exam_id, uid())).fetchone()
+        if not r or r["submitted_at"]:
+            return False
+        answers, flags = json.loads(r["answers"] or "{}"), set(json.loads(r["flags"] or "[]"))
+        if answer is not None:
+            answers[qid] = answer
+        if flagged is not None:
+            (flags.add if flagged else flags.discard)(qid)
+        c.execute("UPDATE mock_exams SET answers=?, flags=? WHERE id=? AND user_id=?",
+                  (json.dumps(answers, ensure_ascii=False), json.dumps(sorted(flags)), exam_id, uid()))
+    return True
+
+
+def finish_mock_exam(exam_id, results):
+    c = conn()
+    with c:
+        c.execute("UPDATE mock_exams SET results=?, score=?, submitted_at=? WHERE id=? AND user_id=? AND submitted_at IS NULL",
+                  (json.dumps(results, ensure_ascii=False), results["score"], now(), exam_id, uid()))
+
+
+def list_mock_exams(limit=20):
+    rows = conn().execute("SELECT id, count, score, results, created_at, submitted_at FROM mock_exams WHERE user_id=? "
+                          "ORDER BY created_at DESC LIMIT ?", (uid(), limit)).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        res = json.loads(d.pop("results") or "null")
+        d["categories"] = res["categories"] if res else []
+        out.append(d)
+    return out
 
 
 def question_attempts(instance_id):
