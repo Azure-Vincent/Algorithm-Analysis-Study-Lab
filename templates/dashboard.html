@@ -16,7 +16,9 @@
      ('tn', {'title': 'T(n) Analysis', 'href': '/tn', 'cls': 'tn', 'bar': '',
        'topics': ['Counting operations', 'Operation tables', 'Loop checks & updates', 'Nested loops', 'Summations', 'Logarithmic loops', 'n, m, k', 'Best / worst case', 'T(n) → Θ']}),
      ('proofs', {'title': 'Complexity Proofs', 'href': '/proofs', 'cls': 'pc', 'bar': '',
-       'topics': ['Formal Big O', 'Big Ω', 'Big Θ', 'Choosing c and n₀', 'Disproving bounds', 'Proof debugging', 'Ratio & limits', 'Proof sandbox']})] %}
+       'topics': ['Formal Big O', 'Big Ω', 'Big Θ', 'Choosing c and n₀', 'Disproving bounds', 'Proof debugging', 'Ratio & limits', 'Proof sandbox']}),
+     ('math', {'title': 'Discrete Math Foundations', 'href': '/learn/math', 'cls': 'tn', 'bar': '',
+       'topics': ['Exponent rules', 'Logarithm rules', 'Polynomials', 'Factoring', 'Fractions', 'Arithmetic sequences', 'Series & summations', 'Geometric sequences', 'Inequalities', 'Growth rates']})] %}
   {% set t = ts[key] %}
   <div class="card pad-lg track-card {{ info.cls }}">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
@@ -38,7 +40,7 @@
 <div class="grid grid-3">
   <a class="card" href="/learn">
     <h3>Learn</h3>
-    <p class="muted">Big O, Θ and Ω with worked examples, T(n) analysis and the counting model, the pseudocode conventions, plus the growth-rate visualizer and algorithm comparison.</p>
+    <p class="muted">Big O, Θ and Ω with worked examples, T(n) analysis and the counting model, the pseudocode conventions, the discrete math behind it (exponents, logs, series), plus the growth-rate visualizer and algorithm comparison.</p>
   </a>
   <a class="card" href="/complexity">
     <h3>Practice with feedback</h3>

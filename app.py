@@ -18,8 +18,10 @@ from werkzeug.exceptions import HTTPException
 import config
 import db
 import profile as local_profile
-from engine import generator, grading, mockexam, proofs, stats, tn, tnmath
-from engine.catalog import (COMPLEXITY_TOPICS, COMPLEXITY_TYPES, LEVELS, PROOF_LEVELS, PROOF_TOPICS, PROOF_TYPES,
+from data import math_lessons
+from engine import generator, grading, mathfound, mockexam, proofs, stats, tn, tnmath
+from engine.catalog import (COMPLEXITY_TOPICS, COMPLEXITY_TYPES, LEVELS, MATH_LEVELS, MATH_TOPICS, MATH_TYPES, PROOF_LEVELS,
+                            PROOF_TOPICS, PROOF_TYPES,
                             PSEUDO_TOPICS, PSEUDO_TYPES, SESSION_TOPICS, TN_LEVELS, TN_TOPICS, TOPICS, TRACK_LABELS, TYPES)
 
 ANALYSIS_METHOD = [
@@ -48,6 +50,13 @@ PROOF_METHOD = [
     "Choose n₀ > 0 so the inequality holds for EVERY n ≥ n₀, not just on a finite range.",
     "Justify the inequality algebraically for all n ≥ n₀.",
     "For a false claim, show that no fixed c can work (e.g. f(n)/g(n) grows without bound).",
+]
+MATH_METHOD = [
+    "Read the expression and decide which rule applies (exponents, logs, distribution, a known sum…).",
+    "Apply one rule at a time; each line must equal the previous one.",
+    "Combine like terms and tidy fractions.",
+    "Check the form the question asks for (expanded, factored, no power inside a log…).",
+    "For algorithm questions: identify the sequence, choose the formula, simplify, then state Θ.",
 ]
 PROOF_KINDS = {"proof", "proof_fill"}                 # graded by engine.proofs
 PROOF_PARTS = {"proof_debug", "proof_limit"}          # multiple-choice parts, graded by engine.grading
@@ -83,19 +92,23 @@ SESSION_MODES = {"practice", "adaptive", "review", "test"}
 NAV = [("/", "Dashboard"), ("/learn", "Learn"), ("/practice", "Practice"), ("/review", "Review"), ("/progress", "Progress")]
 SUBNAV = {
     "/learn": [("/learn", "Big O & pseudocode"), ("/learn/tn", "T(n) analysis"), ("/learn/proofs", "Complexity proofs"),
-               ("/visualizer", "Growth visualizer"), ("/compare", "Compare algorithms")],
+               ("/learn/math", "Discrete math"), ("/visualizer", "Growth visualizer"), ("/compare", "Compare algorithms")],
     "/practice": [("/practice", "Practice tests"), ("/complexity", "Complexity"), ("/tn", "T(n) Analysis"),
                   ("/pseudocode", "Pseudocode Lab"), ("/proofs", "Proofs"), ("/proofs/sandbox", "Proof sandbox"),
+                  ("/math", "Discrete math"),
                   ("/mock", "Mock exam"), ("/adaptive", "Adaptive"), ("/generator", "Generator")],
 }
 SECTION_OF = {href: section for section, items in SUBNAV.items() for href, _ in items}
 SECTION_OF["/tn/reference"] = "/learn"
+SECTION_OF["/learn/math/rules"] = "/learn"
 
 
 def nav_section(path):
     """Which main tab a page belongs to (exercise pages count as Practice)."""
     if path.startswith(("/exercise/", "/mock/")):
         return "/practice"
+    if path.startswith("/learn/math/"):
+        return "/learn"
     return SECTION_OF.get(path.rstrip("/") or "/", path if path in dict(NAV) else None)
 DIFFICULTIES = {"beginner", "intermediate", "advanced", "mixed"}
 ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
@@ -168,6 +181,7 @@ def create_app(db_path=None, env=None):
                 "TN_TOPICS": TN_TOPICS, "TN_LEVELS": TN_LEVELS, "TN_MODEL": tn.MODEL_RULES, "TRACK_LABELS": TRACK_LABELS,
                 "FAMILIES": generator.FAMILIES, "NAV": NAV, "SUBNAV": SUBNAV,
                 "PROOF_TOPICS": PROOF_TOPICS, "PROOF_LEVELS": PROOF_LEVELS, "PROOF_TYPES": PROOF_TYPES,
+                "MATH_TOPICS": MATH_TOPICS,
                 "NAV_SECTION": nav_section(request.path)}
 
     # ------------------------------------------------------------------ pages
@@ -207,7 +221,8 @@ def create_app(db_path=None, env=None):
                                back=({"complexity": ("/complexity", "Complexity Practice"),
                                       "pseudocode": ("/pseudocode", "Pseudocode Lab"),
                                       "tn": ("/tn", "T(n) Analysis"),
-                                      "proofs": ("/proofs", "Proofs")}).get(ex["track"], ("/", "Dashboard")))
+                                      "proofs": ("/proofs", "Proofs"),
+                                      "math": ("/math", "Discrete Math")}).get(ex["track"], ("/", "Dashboard")))
 
     @app.route("/proofs")
     def proofs_page():
@@ -221,6 +236,39 @@ def create_app(db_path=None, env=None):
     @app.route("/learn/proofs")
     def proofs_learn_page():
         return render_template("proofs_learn.html")
+
+    @app.route("/math")
+    def math_page():
+        return render_template("browse.html", track="math", types=MATH_TYPES, topics=MATH_TOPICS,
+                               heading="Discrete Math Foundations", levels=MATH_LEVELS, mastery=stats.math_mastery())
+
+    def _lesson_cards():
+        rows = db.list_exercises(track="math")
+        status = db.exercise_status_map()
+        by_topic = {}
+        for r in rows:
+            by_topic.setdefault(r["topic"], []).append(status.get(r["id"], "unseen"))
+        return [{"topic": l["topic"], "title": l["title"], "intro": l["intro"], "total": len(by_topic.get(l["topic"], [])),
+                 "done": sum(1 for st in by_topic.get(l["topic"], []) if st in ("solved", "mastered", "improving"))}
+                for l in math_lessons.LESSONS]
+
+    @app.route("/learn/math")
+    def math_lessons_page():
+        return render_template("math_lessons.html", lessons=_lesson_cards(), mastery=stats.math_mastery())
+
+    @app.route("/learn/math/rules")
+    def math_rules_page():
+        return render_template("math_rules.html", sheet=math_lessons.RULES_SHEET)
+
+    @app.route("/learn/math/<topic>")
+    def math_lesson_page(topic):
+        lesson = math_lessons.BY_TOPIC.get(topic)
+        if not lesson:
+            abort(404, description="lesson not found")
+        i = math_lessons.LESSONS.index(lesson)
+        nxt = math_lessons.LESSONS[i + 1] if i + 1 < len(math_lessons.LESSONS) else None
+        prev = math_lessons.LESSONS[i - 1] if i else None
+        return render_template("math_lesson.html", lesson=lesson, number=i + 1, prev=prev, next=nxt)
 
     @app.route("/mock")
     @app.route("/mock/<exam_id>")
@@ -245,7 +293,7 @@ def create_app(db_path=None, env=None):
     def progress_page():
         return render_template("progress.html", ts=stats.track_stats(), topics=stats.topic_stats(), tnst=stats.tn_stats(),
                                types=stats.type_stats(), sessions=db.recent_sessions(12), proof_mastery=stats.proof_mastery(),
-                               mock_exams=db.list_mock_exams(10),
+                               math_mastery=stats.math_mastery(), mock_exams=db.list_mock_exams(10),
                                mistakes=db.list_mistakes())
 
     @app.route("/learn")
@@ -301,8 +349,8 @@ def create_app(db_path=None, env=None):
             view["method"] = PROOF_METHOD
         else:
             view = grading.public_view(ex)
-            view["level_label"] = (PROOF_LEVELS if ex["track"] == "proofs" else LEVELS).get(ex["level"], "")
-            view["method"] = (PROOF_METHOD if ex["track"] == "proofs" else
+            view["level_label"] = {"proofs": PROOF_LEVELS, "math": MATH_LEVELS}.get(ex["track"], LEVELS).get(ex["level"], "")
+            view["method"] = (PROOF_METHOD if ex["track"] == "proofs" else MATH_METHOD if ex["track"] == "math" else
                               ANALYSIS_METHOD if ex["track"] == "complexity" or ex["type"] == "to_complexity" else PSEUDO_METHOD)
         view["type_label"] = TYPES.get(ex["type"], ex["type"])
         view["topic_label"] = TOPICS.get(ex["topic"], ex["topic"])
@@ -408,6 +456,9 @@ def create_app(db_path=None, env=None):
         if ex["type"] in PROOF_PARTS:
             result["skills"] = proofs.parts_skills(ex, result)
             result["category"] = None if result["correct"] else ("proof_debug" if ex["type"] == "proof_debug" else "limits")
+        if ex["track"] == "math":
+            result["skills"] = mathfound.skills_for(ex, result)
+            result["category"] = None if result["correct"] else ex["topic"]
         parts = {"t": result["t_correct"], "theta": result["theta_correct"]} if ex["type"] == "tn" else None
         instance = _ident(body.get("instance_id")) or str(uuid.uuid4())
         hints_used = _int(body.get("hints_used"), 0, 0, 20)
@@ -431,7 +482,7 @@ def create_app(db_path=None, env=None):
         if ex["type"] == "tn" and result["correct"]:
             result["solution"] = tn.solution_payload(ex)
         # retry-style exercises keep the full solution hidden until correct or explicitly revealed
-        locks = ex["track"] == "complexity" or ex["type"] in ("to_complexity", "trace") or ex["type"] in PROOF_PARTS
+        locks = ex["track"] in ("complexity", "math") or ex["type"] in ("to_complexity", "trace") or ex["type"] in PROOF_PARTS
         result["locked"] = bool(locks or result["correct"])
         if not result["locked"]:
             result.pop("solution", None)
@@ -459,6 +510,7 @@ def create_app(db_path=None, env=None):
             r["topic_label"] = TOPICS.get(r["topic"], r["topic"])
             r["type_label"] = TYPES.get(r["type"], r["type"])
             r["category_label"] = (proofs.category_label(r.get("category")) if r.get("track") == "proofs"
+                                   else mathfound.category_label(r.get("category")) if r.get("track") == "math"
                                    else tn.category_label(r.get("category")))
         return jsonify(rows)
 

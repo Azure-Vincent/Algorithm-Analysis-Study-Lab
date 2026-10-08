@@ -14,6 +14,10 @@ nesting depth, number size and exponent size so no input can make the server do 
 
 growth=True (used by the Time Complexity Proofs section) additionally accepts the growth classes
 beyond polynomials:  2^n (a numeric base 2..10 raised to n),  n!  and  sqrt(n) / √n.
+
+algebra=True (Discrete Math Foundations; implies growth) also accepts symbolic exponents such as
+x^(a+b), 2^(n+1), 2^(2n) and x^(-a) (exponents built from the allowed variables, at most degree 3),
+and the extra logarithms ln(x) and log10(x). Plain log is still base 2.
 """
 from __future__ import annotations
 
@@ -26,6 +30,7 @@ import sympy as sp
 MAX_LEN = 200
 MAX_TOKENS = 120
 MAX_DEPTH = 24
+ALGEBRA_MAX_EXPONENT = 60     # algebra practice: x^15 is a legitimate (wrong) answer to grade
 MAX_EXPONENT = 10
 MAX_NUMBER_DIGITS = 12
 MAX_DEGREE = 16          # caps the work done when expanding products like (n+1)^10 (n+1)^10 ...
@@ -33,6 +38,7 @@ MAX_DEGREE = 16          # caps the work done when expanding products like (n+1)
 BASE_VARS = ("n", "m", "k")
 FUNCS = {"log2": "log", "log": "log", "lg": "log"}
 GROWTH_FUNCS = {"sqrt": "sqrt"}
+ALGEBRA_FUNCS = {"ln": "ln", "log10": "log10"}
 LOG2 = sp.log(2)
 
 
@@ -44,7 +50,7 @@ def symbol(name):
     return sp.Symbol(name, positive=True)
 
 
-SYM = {v: symbol(v) for v in ("n", "m", "k", "i", "j", "t", "c", "c1", "c2")}
+SYM = {v: symbol(v) for v in ("n", "m", "k", "i", "j", "t", "c", "c1", "c2", "x", "y", "a", "b")}
 
 
 def log2(x):
@@ -72,13 +78,13 @@ def _normalize(text):
     return s
 
 
-def tokenize(text, allowed_vars, growth=False):
+def tokenize(text, allowed_vars, growth=False, algebra=False):
     s = _normalize(text)
     if not s:
         raise ParseError("Enter an expression.")
     if len(s) > MAX_LEN:
         raise ParseError(f"That expression is too long (maximum {MAX_LEN} characters).")
-    funcs = set(FUNCS) | (set(GROWTH_FUNCS) if growth else set())
+    funcs = set(FUNCS) | (set(GROWTH_FUNCS) if growth else set()) | (set(ALGEBRA_FUNCS) if algebra else set())
     names = sorted(set(allowed_vars) | funcs, key=len, reverse=True)
     out, pos = [], 0
     while pos < len(s):
@@ -137,6 +143,7 @@ class _Parser:
         self.i = 0
         self.depth = 0
         self.growth = growth
+        self.algebra = False
 
     def peek(self):
         return self.toks[self.i] if self.i < len(self.toks) else None
@@ -227,7 +234,7 @@ class _Parser:
                 arg = self.atom()                              # log n
             else:
                 raise ParseError(f"{t.value} needs an argument, e.g. {t.value}(n).")
-            return Node("sqrt" if t.value == "sqrt" else "log", (arg,))
+            return Node({"sqrt": "sqrt", "ln": "ln", "log10": "log10"}.get(t.value, "log"), (arg,))
         if t.value == "(":
             self.take()
             self.deeper()
@@ -238,15 +245,20 @@ class _Parser:
         raise ParseError(f"Unexpected '{t.value}'.")
 
 
-def _to_sympy(node, growth=False):
+def _to_sympy(node, growth=False, algebra=False):
     op = node.op
+    if op in ("ln", "log10"):
+        arg = _to_sympy(node.kids[0], growth, algebra)
+        if arg.is_number and arg <= 0:
+            raise ParseError("log needs a positive argument.")
+        return sp.log(arg) if op == "ln" else sp.log(arg) / sp.log(10)
     if op == "fact":
-        arg = _to_sympy(node.kids[0], growth)
+        arg = _to_sympy(node.kids[0], growth, algebra)
         if arg != SYM["n"]:
             raise ParseError("Factorial is only supported as n!.")
         return sp.factorial(arg)
     if op == "sqrt":
-        arg = _to_sympy(node.kids[0], growth)
+        arg = _to_sympy(node.kids[0], growth, algebra)
         if arg.is_number and arg < 0:
             raise ParseError("sqrt needs a non-negative argument.")
         return sp.sqrt(arg)
@@ -255,34 +267,46 @@ def _to_sympy(node, growth=False):
     if op == "var":
         return SYM[node.value]
     if op == "neg":
-        return -_to_sympy(node.kids[0], growth)
+        return -_to_sympy(node.kids[0], growth, algebra)
     if op == "add":
-        return _to_sympy(node.kids[0], growth) + _to_sympy(node.kids[1], growth)
+        return _to_sympy(node.kids[0], growth, algebra) + _to_sympy(node.kids[1], growth, algebra)
     if op == "mul":
-        return _to_sympy(node.kids[0], growth) * _to_sympy(node.kids[1], growth)
+        return _to_sympy(node.kids[0], growth, algebra) * _to_sympy(node.kids[1], growth, algebra)
     if op == "div":
-        d = _to_sympy(node.kids[1], growth)
+        d = _to_sympy(node.kids[1], growth, algebra)
         if d == 0:
             raise ParseError("Division by zero.")
-        return _to_sympy(node.kids[0], growth) / d
+        return _to_sympy(node.kids[0], growth, algebra) / d
     if op == "log":
-        arg = _to_sympy(node.kids[0], growth)
+        arg = _to_sympy(node.kids[0], growth, algebra)
         if arg.is_number and arg <= 0:
             raise ParseError("log needs a positive argument.")
         return log2(arg)
     if op == "pow":
-        base = _to_sympy(node.kids[0], growth)
-        exp = _to_sympy(node.kids[1], growth)
+        base = _to_sympy(node.kids[0], growth, algebra)
+        exp = _to_sympy(node.kids[1], growth, algebra)
         if not exp.is_number:
             if growth and base.is_number and 2 <= base <= 10 and exp == SYM["n"]:
                 return base ** exp                                     # exponential growth: 2^n
+            if algebra and _small_exponent(exp) and (not base.is_number or 0 < base <= 10):
+                return base ** exp                                     # x^(a+b), 2^(n+1), 2^(2n)
             raise ParseError("Exponents must be numbers (like n^2)" + (", or 2^n" if growth else ", not variables") + ".")
-        if abs(exp) > MAX_EXPONENT:
-            raise ParseError(f"Exponents larger than {MAX_EXPONENT} aren't supported here.")
+        limit = ALGEBRA_MAX_EXPONENT if algebra else MAX_EXPONENT
+        if abs(exp) > limit:
+            raise ParseError(f"Exponents larger than {limit} aren't supported here.")
         if base.is_number and abs(base) > 10 ** 6 and exp > 1:
             raise ParseError("That number is too large.")
         return base ** exp
     raise ParseError("Unsupported expression.")
+
+
+def _small_exponent(exp):
+    """A symbolic exponent built from allowed variables: polynomial of degree ≤ 3 with small coefficients."""
+    try:
+        poly = sp.Poly(exp, *sorted(exp.free_symbols, key=str))
+    except sp.PolynomialError:
+        return False
+    return poly.total_degree() <= 3 and all(abs(c) <= 100 for c in poly.coeffs())
 
 
 def _number(node):
@@ -305,7 +329,7 @@ def _degree_bound(node):
     op = node.op
     if op == "num":
         return 0
-    if op in ("var", "log", "fact", "sqrt"):
+    if op in ("var", "log", "fact", "sqrt", "ln", "log10"):
         return 1
     if op == "neg":
         return _degree_bound(node.kids[0])
@@ -345,7 +369,7 @@ def strip_wrapper(text):
     return inner, kind
 
 
-def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False, growth=False):
+def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False, growth=False, algebra=False):
     """Parse untrusted text into a SymPy expression. Raises ParseError with a friendly message."""
     if not isinstance(text, str):
         raise ParseError("Enter an expression.")
@@ -358,11 +382,12 @@ def parse(text, allowed_vars=BASE_VARS, allow_wrapper=False, growth=False):
         text = inner
     elif "=" in text:
         raise ParseError("Write just the expression, e.g. 3n + 4 (or T(n) = 3n + 4).")
-    toks = tokenize(text, allowed_vars, growth)
+    growth = growth or algebra
+    toks = tokenize(text, allowed_vars, growth, algebra)
     tree = _Parser(toks, growth).parse()
     if _degree_bound(tree) > MAX_DEGREE:
         raise ParseError("That expression is too complex - T(n) functions here have small powers.")
-    expr = sp.expand(_to_sympy(tree, growth))
+    expr = sp.expand(_to_sympy(tree, growth, algebra))
     if expr.has(sp.zoo, sp.oo, sp.nan):
         raise ParseError("That expression isn't defined.")
     if wrapper and not allow_wrapper:

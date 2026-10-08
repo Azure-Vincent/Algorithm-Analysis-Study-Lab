@@ -30,7 +30,7 @@ def _agg(qs):
 
 def track_stats():
     out = {}
-    for track in ("complexity", "pseudocode", "tn", "proofs"):
+    for track in ("complexity", "pseudocode", "tn", "proofs", "math"):
         qs = db.answered_questions(track)
         total = len(db.list_exercises(track=track))
         seen = len({q["exercise_id"] for q in qs})
@@ -112,15 +112,37 @@ def proof_mastery():
     """Mastery per proof skill (Big O / Ω / Θ proofs, selecting c and n₀, polynomial bounds, growth comparisons,
     disproving bounds): first-try accuracy, smoothed like adaptive practice so a single answer doesn't read as 0 % or 100 %."""
     from engine.proofs import SKILLS
+    return _skill_mastery(SKILLS)
+
+
+def _skill_mastery(skills):
     rows = {r["skill"]: r for r in db.proof_skill_rows()}
     out = []
-    for key, label in SKILLS.items():
+    for key, label in skills.items():
         r = rows.get(key, {"answered": 0, "first_correct": 0, "correct": 0})
         n, first = r["answered"] or 0, r["first_correct"] or 0
         out.append({"skill": key, "label": label, "answered": n,
                     "accuracy": round(100 * first / n) if n else None,
                     "mastery": round(100 * (first + PRIOR_ACC * PRIOR_N) / (n + PRIOR_N)) if n else None,
                     "eventual": round(100 * (r["correct"] or 0) / n) if n else None})
+    return out
+
+
+def math_mastery():
+    """Mastery per math rule (Exponent Rules, Logarithm Rules, …, Mixed Simplification), smoothed like proof mastery."""
+    from engine.mathfound import SKILLS
+    return _skill_mastery(SKILLS)
+
+
+def math_rule_accuracy():
+    """Smoothed accuracy of the weakest rule behind each math topic - lets adaptive practice target weak rules."""
+    from engine.mathfound import TOPIC_SKILLS
+    by_skill = {r["skill"]: r for r in math_mastery() if r["answered"]}
+    out = {}
+    for topic, skills in TOPIC_SKILLS.items():
+        vals = [by_skill[s]["mastery"] / 100 for s in skills if s in by_skill]
+        if vals:
+            out[topic] = min(vals)
     return out
 
 
@@ -182,6 +204,8 @@ def matches_topic(ex_row, topic):
         return ex_row["track"] == "tn"
     if topic == "proofs":
         return ex_row["track"] == "proofs"
+    if topic == "math":
+        return ex_row["track"] == "math"
     return topic in ex_row["tags"]
 
 
@@ -258,6 +282,8 @@ def adaptive_weights():
 
 def adaptive_pick(candidates, rng):
     acc, _ = topic_accuracy_map()
+    for topic, rule_acc in math_rule_accuracy().items():      # a weak rule pulls its topic's weight up
+        acc[topic] = min(acc.get(topic, PRIOR_ACC), rule_acc)
     status = db.exercise_status_map()
     by_topic = defaultdict(list)
     for r in candidates:

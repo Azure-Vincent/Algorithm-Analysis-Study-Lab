@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Math Rules{% endblock %}
+{% block content %}
+<div class="learn-layout">
+  <nav class="toc" aria-label="On this page">
+    <div class="section-title" style="margin-top:0">Math Rules</div>
+    {% for name, rules in sheet %}<a href="#s{{ loop.index }}">{{ name }}</a>{% endfor %}
+    <p style="margin-top:14px"><a class="btn small" href="/learn/math">Lessons</a></p>
+    <p><a class="btn small primary" href="/math">Practice →</a></p>
+  </nav>
+  <div class="learn">
+    <h1 style="margin-top:0">Math Rules reference</h1>
+    <p class="muted">Everything the Discrete Math Foundations lessons use, on one page. In this app <b>log</b> means log₂; type answers with <code>^</code> for powers (<code>2^(n+1)</code>), <code>*</code> or a space for multiplication, <code>ln</code> and <code>log10</code> for other bases.</p>
+    {% for name, rules in sheet %}
+    <section id="s{{ loop.index }}">
+      <h2>{{ name }}</h2>
+      <table class="data rules-table">
+        <tr><th>Rule</th><th>Formula</th><th>Example</th></tr>
+        {% for r in rules %}<tr><td>{{ r[0] }}</td><td class="mono">{{ r[1] }}</td><td class="mono muted">{{ r[2] }}</td></tr>{% endfor %}
+      </table>
+    </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

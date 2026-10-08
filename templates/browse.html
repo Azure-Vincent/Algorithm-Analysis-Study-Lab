@@ -19,22 +19,30 @@
   'proof': 'Decide true or false; give c and n₀ (or explain why none exist). Worked proof after.',
   'proof_fill': 'Fill the missing pieces of a proof, line by line.',
   'proof_debug': 'Spot what is wrong with an incorrect proof.',
-  'proof_limit': 'Use f(n)/g(n) and limits - and tell intuition, definition and limit apart.'} %}
+  'proof_limit': 'Use f(n)/g(n) and limits - and tell intuition, definition and limit apart.',
+  'math_rule': 'Name the rule first, then apply it.',
+  'math_simplify': 'Simplify; any equivalent answer counts unless a form is asked for.',
+  'math_steps': 'One transformation at a time, each step checked before the next.',
+  'math_work': 'Show every line of working - each line is checked.',
+  'math_valid': 'Valid or invalid? Common rule mistakes, and why.',
+  'math_mistake': 'Find the first wrong line in someone else’s work and fix it.',
+  'math_bound': 'Choose constants that make an inequality hold.',
+  'math_apply': 'Loops → sequence → formula → simplify → Θ.'} %}
 {% set LV = levels or LEVELS %}
 <div class="page-head">
   <div>
     <h1>{{ heading }}</h1>
-    <p>{% if track == 'proofs' %}Prove (or disprove) f(n) ∈ O / Ω / Θ (g(n)) from the formal definitions by finding constants c and n₀. New to proofs? Read <a href="/learn/proofs">Learn → Complexity proofs</a>; to experiment, open the <a href="/proofs/sandbox">Proof sandbox</a>.{% elif track == 'complexity' %}Pick a mode, level or topic, then start practicing right here - or open a single exercise below.{% else %}Start with small pieces and build up to full algorithms. Pick a mode or topic and start practicing right here. Everything you write is run against test cases.{% endif %}</p>
+    <p>{% if track == 'proofs' %}Prove (or disprove) f(n) ∈ O / Ω / Θ (g(n)) from the formal definitions by finding constants c and n₀. New to proofs? Read <a href="/learn/proofs">Learn → Complexity proofs</a>; to experiment, open the <a href="/proofs/sandbox">Proof sandbox</a>.{% elif track == 'math' %}The algebra behind algorithm analysis: exponents, logarithms, polynomials, fractions, sequences, series and inequalities. Each topic has a lesson in <a href="/learn/math">Learn → Discrete math</a> and a <a href="/learn/math/rules">Math Rules</a> reference sheet. Answers are read by a safe math parser - any equivalent expression is accepted.{% elif track == 'complexity' %}Pick a mode, level or topic, then start practicing right here - or open a single exercise below.{% else %}Start with small pieces and build up to full algorithms. Pick a mode or topic and start practicing right here. Everything you write is run against test cases.{% endif %}</p>
   </div>
 </div>
 
 <div id="browse">
-{% if track == 'proofs' %}
+{% if track in ('proofs', 'math') %}
 <div class="card pad-lg" style="margin-bottom:16px">
-  <h3 style="margin-top:0">Your proof mastery</h3>
-  <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per skill (smoothed while you have only a few answers). Weak skills get extra weight in <a href="/adaptive">Adaptive practice</a>; missed proofs go to <a href="/review">Review</a>.</p>
+  <h3 style="margin-top:0">{{ 'Your proof mastery' if track == 'proofs' else 'Your mastery by rule' }}</h3>
+  <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per {{ 'skill' if track == 'proofs' else 'rule' }} (smoothed while you have only a few answers). Weak {{ 'skills' if track == 'proofs' else 'rules' }} get extra weight in <a href="/adaptive">Adaptive practice</a>; missed {{ 'proofs' if track == 'proofs' else 'exercises' }} go to <a href="/review">Review</a>.</p>
   <table class="data mastery">
-    <tr><th>Skill</th><th class="num">Answered</th><th style="width:40%">Mastery</th></tr>
+    <tr><th>{{ 'Skill' if track == 'proofs' else 'Rule' }}</th><th class="num">Answered</th><th style="width:40%">Mastery</th></tr>
     {% for m in mastery %}
     <tr><td>{{ m.label }}</td><td class="num">{{ m.answered }}</td>
       <td>{% if m.mastery is not none %}<div style="display:flex;gap:8px;align-items:center"><div class="bar {{ 'red' if m.mastery < 55 else ('amber' if m.mastery < 75 else 'green') }}" style="flex:1"><span style="width:{{ m.mastery }}%"></span></div><span class="mono" style="width:44px;text-align:right">{{ m.mastery }}%</span></div>{% else %}<span class="faint">not practiced yet</span>{% endif %}</td></tr>
@@ -78,7 +86,7 @@ return location</pre>
   <label class="field">Topic
     <select id="f-topic"><option value="">All topics</option>{% for k, v in topics.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
   </label>
-  <label class="field{{ ' hidden' if track == 'proofs' }}">Style
+  <label class="field{{ ' hidden' if track in ('proofs', 'math') }}">Style
     <select id="f-style"><option value="">Any style</option><option value="course">Course convention (:=, a₁…aₙ)</option><option value="general">General pseudocode</option></select>
   </label>
   <label class="field">Status
