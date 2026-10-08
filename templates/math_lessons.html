@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Discrete Math Foundations{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Discrete Math Foundations</h1>
+    <p>The algebra that algorithm analysis depends on. Each lesson goes <b>Learn → Worked examples → Guided practice → Independent practice → Algorithm analysis application</b>. Practice answers are graded by a safe math parser, so any equivalent expression counts.</p>
+  </div>
+  <div class="btn-row"><a class="btn" href="/learn/math/rules">Math Rules reference</a><a class="btn primary" href="/math">Practice all topics</a></div>
+</div>
+
+<div class="grid grid-3 lesson-cards">
+  {% for l in lessons %}
+  <a class="card pad-lg lesson-card" href="/learn/math/{{ l.topic }}">
+    <div class="muted" style="font-size:.8rem">Lesson {{ loop.index }}</div>
+    <h3 style="margin:2px 0 6px">{{ l.title }}</h3>
+    <p class="muted" style="font-size:.88rem;margin:0 0 10px">{{ l.intro }}</p>
+    <div class="bar {{ 'green' if l.total and l.done == l.total else '' }}"><span style="width:{{ (100 * l.done / l.total) if l.total else 0 }}%"></span></div>
+    <div class="muted" style="font-size:.8rem;margin-top:4px">{{ l.done }} / {{ l.total }} exercises solved</div>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="card pad-lg" style="margin-top:16px">
+  <h3 style="margin-top:0">Your mastery by rule</h3>
+  <p class="muted" style="font-size:.88rem;margin-top:-4px">First-try accuracy per rule, smoothed while you have only a few answers. Weak rules get extra weight in <a href="/adaptive">Adaptive practice</a>; missed exercises go to <a href="/review">Review</a>.</p>
+  <table class="data mastery">
+    <tr><th>Rule</th><th class="num">Answered</th><th style="width:40%">Mastery</th></tr>
+    {% for m in mastery %}
+    <tr><td>{{ m.label }}</td><td class="num">{{ m.answered }}</td>
+      <td>{% if m.mastery is not none %}<div style="display:flex;gap:8px;align-items:center"><div class="bar {{ 'red' if m.mastery < 55 else ('amber' if m.mastery < 75 else 'green') }}" style="flex:1"><span style="width:{{ m.mastery }}%"></span></div><span class="mono" style="width:44px;text-align:right">{{ m.mastery }}%</span></div>{% else %}<span class="faint">not practiced yet</span>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

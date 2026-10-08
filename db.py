@@ -15,7 +15,7 @@ import sqlite3
 import threading
 from datetime import datetime
 
-SEED_VERSION = "2026.10.6"
+SEED_VERSION = "2026.10.8"
 SCHEMA_VERSION = 4
 MASTERY_STREAK = 3
 PROGRESS_TABLES = ("questions", "attempts", "mistakes", "sessions", "user_solutions", "proof_skills", "mock_exams")

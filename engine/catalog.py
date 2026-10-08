@@ -68,9 +68,33 @@ PROOF_LEVELS = {
     5: "Level 5 · Limits & advanced",
 }
 
-TRACK_LABELS = {"complexity": "Complexity", "pseudocode": "Pseudocode", "tn": "T(n) Analysis", "proofs": "Proofs"}
+MATH_TOPICS = {
+    "math_algebra": "Algebra fundamentals",
+    "math_exp": "Exponent rules",
+    "math_log": "Logarithm rules",
+    "math_poly": "Polynomial simplification",
+    "math_factor": "Factoring",
+    "math_frac": "Fractions & rational expressions",
+    "math_aseq": "Arithmetic sequences",
+    "math_aseries": "Arithmetic series & summations",
+    "math_gseq": "Geometric sequences",
+    "math_growth": "Growth-rate comparisons",
+    "math_ineq": "Mathematical inequalities",
+    "math_tn": "Math used in T(n)",
+    "math_mixed": "Mixed simplification",
+}
 
-TOPICS = {**COMPLEXITY_TOPICS, **PSEUDO_TOPICS, **TN_TOPICS, **PROOF_TOPICS}
+MATH_LEVELS = {
+    1: "Level 1 · One rule",
+    2: "Level 2 · Two rules",
+    3: "Level 3 · Multi-step",
+    4: "Level 4 · Algorithm analysis",
+}
+
+TRACK_LABELS = {"complexity": "Complexity", "pseudocode": "Pseudocode", "tn": "T(n) Analysis", "proofs": "Proofs",
+                "math": "Discrete Math Foundations"}
+
+TOPICS = {**COMPLEXITY_TOPICS, **PSEUDO_TOPICS, **TN_TOPICS, **PROOF_TOPICS, **MATH_TOPICS}
 
 COMPLEXITY_TYPES = {
     "identify": "A · Identify the complexity",
@@ -101,7 +125,18 @@ PROOF_TYPES = {
     "proof_limit": "D · Ratio & limit method",
 }
 
-TYPES = {**COMPLEXITY_TYPES, **PSEUDO_TYPES, **TN_TYPES, **PROOF_TYPES}
+MATH_TYPES = {
+    "math_rule": "A · What rule do I use?",
+    "math_simplify": "B · Simplify",
+    "math_steps": "C · Step-by-step",
+    "math_work": "D · Show your work",
+    "math_valid": "E · Valid or invalid?",
+    "math_mistake": "F · Find the mistake",
+    "math_bound": "G · Inequalities & constants",
+    "math_apply": "H · Algorithm application",
+}
+
+TYPES = {**COMPLEXITY_TYPES, **PSEUDO_TYPES, **TN_TYPES, **PROOF_TYPES, **MATH_TYPES}
 
 LEVELS = {
     1: "Level 1 · Fundamentals",
@@ -130,6 +165,7 @@ SESSION_TOPICS = {
     "pseudocode": "Pseudocode",
     "tn": "T(n) derivation",
     "proofs": "Complexity proofs",
+    "math": "Discrete math foundations",
     "mixed": "Mixed (everything)",
 }
 

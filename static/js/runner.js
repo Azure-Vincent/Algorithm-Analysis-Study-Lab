@@ -9,7 +9,9 @@
   function wrapOpt(wrap, o) { return wrap && !/^No single/.test(o) ? wrap + "(" + o + ")" : o; }
   // exercises answered through multiple-choice / number parts (complexity track, pseudocode → complexity, proof debugging & limits)
   const PART_TYPES = ["to_complexity", "proof_debug", "proof_limit"];
-  function isParts(v) { return v.track === "complexity" || PART_TYPES.indexOf(v.type) >= 0; }
+  function isParts(v) { return v.track === "complexity" || v.track === "math" || PART_TYPES.indexOf(v.type) >= 0; }
+  // free-form math answers (Discrete Math Foundations), graded server-side by a safe parser
+  const MATH_KINDS = { expr: "expression, e.g. 4x log(x)", theta: "e.g. Θ(n log n)  or  n log n", constant: "a number, e.g. 4" };
 
   function Runner(root, opts) {
     this.root = root;
@@ -48,7 +50,7 @@
     if (v.mistake_status) head.insertAdjacentHTML("beforeend", BT.statusBadge(v.mistake_status === "open" ? "missed" : v.mistake_status));
     box.appendChild(head);
     const meta = el("div", { class: "ex-meta" });
-    const trackBadge = { complexity: ["blue", "Complexity"], proofs: ["green", "Proofs"] }[v.track] || ["purple", "Pseudocode"];
+    const trackBadge = { complexity: ["blue", "Complexity"], proofs: ["green", "Proofs"], math: ["amber", "Discrete Math"] }[v.track] || ["purple", "Pseudocode"];
     meta.innerHTML =
       '<span class="badge ' + trackBadge[0] + '">' + trackBadge[1] + "</span>" +
       '<span class="badge">' + esc(v.type_label) + "</span>" +
@@ -58,7 +60,7 @@
     box.appendChild(meta);
 
     const method = el("details", { class: "method" });
-    method.innerHTML = "<summary>" + (v.track === "proofs" ? "The proof method" : isParts(v) ? "The analysis method" : "The pseudocode method") +
+    method.innerHTML = "<summary>" + (v.track === "proofs" ? "The proof method" : v.track === "math" ? "The simplification method" : isParts(v) ? "The analysis method" : "The pseudocode method") +
       "</summary><ol>" + v.method.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ol>";
     box.appendChild(method);
 
@@ -198,6 +200,15 @@
       const inp = el("input", { type: "text", class: "number-input", placeholder: "number", inputmode: "numeric" });
       inp.addEventListener("input", function () { st.parts[p.id] = inp.value; });
       holder.appendChild(inp);
+    } else if (MATH_KINDS[p.kind]) {
+      const inp = el("input", { type: "text", class: "math-input" + (p.kind === "constant" ? " number-input" : ""), placeholder: MATH_KINDS[p.kind],
+                                autocomplete: "off", spellcheck: "false", "aria-label": p.label });
+      inp.addEventListener("input", function () { st.parts[p.id] = inp.value; });
+      holder.appendChild(inp);
+    } else if (p.kind === "work") {
+      const ta = el("textarea", { class: "scratch math-work", placeholder: "one step per line, e.g.\n(n^2 - n)/2 + n\nn^2/2 + n/2", spellcheck: "false", "aria-label": p.label });
+      ta.addEventListener("input", function () { st.parts[p.id] = ta.value; });
+      holder.appendChild(ta);
     } else if (p.kind === "order") {
       st.parts[p.id] = p.options.slice();
       const self = this;
@@ -212,7 +223,7 @@
   Runner.prototype.lockPart = function (pid) {
     const pe = this.partEls[pid];
     pe.inputs.querySelectorAll(".opt").forEach(function (o) { o.setAttribute("aria-disabled", "true"); });
-    pe.inputs.querySelectorAll("input").forEach(function (i) { i.disabled = true; });
+    pe.inputs.querySelectorAll("input, textarea").forEach(function (i) { i.disabled = true; });
     if (this.orderLists && this.orderLists[pid]) this.orderLists[pid].lock();
     pe.box.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
   };
@@ -256,9 +267,9 @@
         else if (d.selected && !d.valid) o.classList.add("wrong");
         else if (!d.selected && d.valid) o.classList.add("missed");
       });
-    } else if (p.kind === "number") {
-      const inp = pe.inputs.querySelector("input");
-      inp.style.borderColor = r.correct ? "var(--green)" : "var(--red)";
+    } else if (p.kind === "number" || MATH_KINDS[p.kind] || p.kind === "work") {
+      const inp = pe.inputs.querySelector("input, textarea");
+      if (inp) inp.style.borderColor = r.correct ? "var(--green)" : "var(--red)";
     } else if (p.kind === "order" && this.orderLists[p.id]) {
       this.orderLists[p.id].markAgainst(this.view.parts.find(function (x) { return x.id === p.id; }), r);
     }
@@ -471,6 +482,7 @@
         const val = ans.parts[p.id];
         if (p.kind === "choice" && !val) return "Choose an answer for: " + p.label;
         if (p.kind === "number" && (val === undefined || String(val).trim() === "")) return "Enter a number for: " + p.label;
+        if ((MATH_KINDS[p.kind] || p.kind === "work") && (val === undefined || String(val).trim() === "")) return "Answer this part first: " + p.label;
       }
     }
     if ((v.type === "write" || v.type === "complete") && !ans.code.trim()) return "Write some pseudocode first.";
@@ -694,7 +706,7 @@
       this.codeHolder.appendChild(leg);
     }
     if (sol.steps && sol.steps.length) {
-      fb.appendChild(el("div", { class: "fb-block", html: "<h4>" + (v.track === "proofs" ? "Worked explanation" : isParts(v) ? "Step-by-step analysis" : "Explanation") + "</h4>" }));
+      fb.appendChild(el("div", { class: "fb-block", html: "<h4>" + (v.track === "proofs" || v.track === "math" ? "Worked solution" : isParts(v) ? "Step-by-step analysis" : "Explanation") + "</h4>" }));
       fb.lastChild.appendChild(el("div", { class: "steps", text: sol.steps.join("\n") }));
     }
     if (sol.note) fb.appendChild(el("div", { class: "callout", text: sol.note }));

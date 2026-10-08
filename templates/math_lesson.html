@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ lesson.title }}{% endblock %}
+{% block content %}
+<div class="learn-layout">
+  <nav class="toc" aria-label="On this page">
+    <div class="section-title" style="margin-top:0">Lesson {{ number }} · {{ lesson.title }}</div>
+    <a href="#learn">1 · Learn</a>
+    <a href="#examples">2 · Worked examples</a>
+    <a href="#guided">3 · Guided practice</a>
+    <a href="#independent">4 · Independent practice</a>
+    <a href="#application">5 · Algorithm analysis application</a>
+    <p style="margin-top:14px"><a class="btn small" href="/learn/math">All lessons</a></p>
+    <p><a class="btn small" href="/learn/math/rules">Math Rules</a></p>
+    <p><a class="btn small primary" href="/math?topic={{ lesson.topic }}">More practice →</a></p>
+  </nav>
+  <div class="learn">
+    <section id="learn">
+      <h1 style="margin-top:0">{{ lesson.title }}</h1>
+      <p>{{ lesson.intro }}</p>
+      <table class="data rules-table">
+        <tr><th>Rule</th><th>Formula</th><th>Example</th></tr>
+        {% for r in lesson.rules %}<tr><td>{{ r[0] }}</td><td class="mono">{{ r[1] }}</td><td class="mono muted">{{ r[2] }}</td></tr>{% endfor %}
+      </table>
+      <div class="callout"><b>What it means.</b> {{ lesson.meaning }}</div>
+      <div class="callout amber"><b>Common mistakes.</b><ul style="margin:6px 0 0">{% for p in lesson.pitfalls %}<li>{{ p }}</li>{% endfor %}</ul></div>
+    </section>
+
+    <section id="examples">
+      <h2>Worked examples</h2>
+      {% for e in lesson.examples %}
+      <div class="card pad-lg" style="margin-bottom:12px">
+        <b>Example {{ loop.index }}.</b> {{ e.problem }}
+        <ol class="worked">{% for s in e.steps %}<li>{{ s }}</li>{% endfor %}</ol>
+        <div class="muted">Answer: <b class="mono">{{ e.answer }}</b></div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <section id="guided">
+      <h2>Guided practice</h2>
+      <p class="muted">Work through it with support: hints come one at a time (the <b>Hint</b> button), and nothing is revealed until you attempt it.</p>
+      <div class="lesson-runner" data-ex="{{ lesson.guided }}"></div>
+    </section>
+
+    <section id="independent">
+      <h2>Independent practice</h2>
+      <p class="muted">Now on your own - try it before using a hint.</p>
+      <div class="lesson-runner" data-ex="{{ lesson.independent }}"></div>
+    </section>
+
+    <section id="application">
+      <h2>Algorithm analysis application</h2>
+      <p>{{ lesson.application_text }}</p>
+      <div class="lesson-runner" data-ex="{{ lesson.application }}"></div>
+    </section>
+
+    <div class="btn-row" style="margin-top:20px">
+      {% if prev %}<a class="btn" href="/learn/math/{{ prev.topic }}">← {{ prev.title }}</a>{% endif %}
+      <span class="spacer"></span>
+      {% if next %}<a class="btn primary" href="/learn/math/{{ next.topic }}">Next: {{ next.title }} →</a>{% else %}<a class="btn primary" href="/math">Practice everything →</a>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tn.js') }}"></script>
+<script src="{{ url_for('static', filename='js/proof.js') }}"></script>
+<script src="{{ url_for('static', filename='js/runner.js') }}"></script>
+<script>
+document.querySelectorAll(".lesson-runner").forEach(function (el) { new ExerciseRunner(el, { context: "free" }).load(el.dataset.ex); });
+</script>
+{% endblock %}
